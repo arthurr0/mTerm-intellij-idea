@@ -17,7 +17,7 @@ object SoundPlayer {
     private const val SAMPLE_RATE = 44100
     private const val MASTER = 0.6
 
-    private val executor = AppExecutorUtil.createBoundedApplicationPoolExecutor("mTerm.Sound", 1)
+    private val executor = AppExecutorUtil.createBoundedApplicationPoolExecutor("MTerm.Sound", 1)
 
     fun play(sound: AgentSound) {
         executor.execute {

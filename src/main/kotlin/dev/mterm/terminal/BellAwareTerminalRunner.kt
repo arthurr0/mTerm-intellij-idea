@@ -2,8 +2,8 @@ package dev.mterm.terminal
 
 import com.intellij.openapi.project.Project
 import com.jediterm.terminal.TtyConnector
-import com.pty4j.PtyProcess
 import org.jetbrains.plugins.terminal.LocalTerminalDirectRunner
+import org.jetbrains.plugins.terminal.ShellStartupOptions
 
 class BellAwareTerminalRunner(
     project: Project,
@@ -11,6 +11,6 @@ class BellAwareTerminalRunner(
     private val onTitle: (String) -> Unit,
 ) : LocalTerminalDirectRunner(project) {
 
-    override fun createTtyConnector(process: PtyProcess): TtyConnector =
-        BellTtyConnector(super.createTtyConnector(process), onActivity, onTitle)
+    override fun createTtyConnector(options: ShellStartupOptions): TtyConnector =
+        BellTtyConnector(super.createTtyConnector(options), onActivity, onTitle)
 }
