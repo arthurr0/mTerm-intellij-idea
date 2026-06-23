@@ -1,0 +1,17 @@
+<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="mtBg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#1f1a14"/>
+      <stop offset="1" stop-color="#0d0b08"/>
+    </linearGradient>
+    <linearGradient id="mtAccent" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#e6bd6e"/>
+      <stop offset="1" stop-color="#c89548"/>
+    </linearGradient>
+  </defs>
+  <rect x="0" y="0" width="40" height="40" rx="9" ry="9" fill="url(#mtBg)"/>
+  <g fill="none" stroke="url(#mtAccent)" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
+    <polyline points="12.5,14 19,20 12.5,26"/>
+  </g>
+  <rect x="21" y="24" width="8.6" height="2.4" rx="0.8" ry="0.8" fill="url(#mtAccent)"/>
+</svg>
