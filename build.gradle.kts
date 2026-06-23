@@ -1,8 +1,7 @@
-import org.jetbrains.intellij.platform.gradle.IntelliJPlatformType
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
-    id("org.jetbrains.kotlin.jvm") version "2.1.20"
+    id("org.jetbrains.kotlin.jvm") version "2.4.0"
     id("org.jetbrains.intellij.platform")
 }
 
@@ -11,10 +10,7 @@ version = providers.gradleProperty("pluginVersion").get()
 
 dependencies {
     intellijPlatform {
-        create(
-            IntelliJPlatformType.fromCode(providers.gradleProperty("platformType").get()),
-            providers.gradleProperty("platformVersion").get(),
-        )
+        intellijIdea(providers.gradleProperty("platformVersion").get())
         bundledPlugin("org.jetbrains.plugins.terminal")
     }
 }
