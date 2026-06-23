@@ -30,6 +30,12 @@ class ResizableTileGrid : JPanel(null) {
         rebuild(preserveFractions = false)
     }
 
+    fun refreshColors() {
+        background = GAP
+        for (divider in dividers) divider.background = GAP
+        repaint()
+    }
+
     fun setTiles(newTiles: List<JComponent>) {
         tiles.clear()
         tiles.addAll(newTiles)
@@ -210,6 +216,7 @@ class ResizableTileGrid : JPanel(null) {
 
         override fun paintComponent(g: Graphics) {
             super.paintComponent(g)
+            if (MTermColors.islandsEnabled) return
             g.color = LINE
             if (vertical) {
                 val cx = width / 2
@@ -226,7 +233,7 @@ class ResizableTileGrid : JPanel(null) {
     private companion object {
         const val GAP_SIZE = 8
         const val MIN_FRACTION = 0.08
-        val GAP: Color get() = MTermColors.panel
+        val GAP: Color get() = if (MTermColors.islandsEnabled) MTermColors.canvas else MTermColors.panel
         val LINE: Color get() = MTermColors.border
         val HANDLE_HOVER: Color get() = MTermColors.panel
         val HANDLE_ACTIVE: Color get() = MTermColors.accent

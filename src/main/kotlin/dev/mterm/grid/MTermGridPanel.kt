@@ -1,7 +1,9 @@
 package dev.mterm.grid
 
 import com.intellij.icons.AllIcons
+import com.intellij.ide.ui.LafManagerListener
 import com.intellij.openapi.Disposable
+import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.Disposer
 import com.intellij.terminal.ui.TerminalWidget
@@ -15,13 +17,15 @@ import java.awt.Color
 import java.awt.Cursor
 import java.awt.Dimension
 import java.awt.FlowLayout
+import java.awt.Graphics
+import java.awt.Graphics2D
 import java.awt.Point
+import java.awt.RenderingHints
 import java.awt.event.MouseAdapter
 import java.awt.event.MouseEvent
 import java.util.Collections
 import javax.swing.BorderFactory
 import javax.swing.BoxLayout
-import javax.swing.JButton
 import javax.swing.JComboBox
 import javax.swing.JComponent
 import javax.swing.JMenuItem
@@ -29,7 +33,6 @@ import javax.swing.JPanel
 import javax.swing.JPopupMenu
 import javax.swing.SwingConstants
 import javax.swing.SwingUtilities
-import javax.swing.border.Border
 import kotlin.math.abs
 
 class MTermGridPanel(
@@ -46,6 +49,7 @@ class MTermGridPanel(
 
     private val columnsCombo = JComboBox(arrayOf("Auto", "1", "2", "3", "4")).apply {
         isFocusable = false
+        putClientProperty("JComboBox.isBorderless", true)
         addActionListener {
             val selected = selectedItem as String
             tileGrid.setColumnsSetting(if (selected == "Auto") null else selected.toInt())
@@ -56,6 +60,8 @@ class MTermGridPanel(
 
     private val placeholder = buildPlaceholder()
 
+    private val toolbar = buildToolbar()
+
     private val center = JPanel(BorderLayout()).apply {
         background = BACKGROUND
         add(placeholder, BorderLayout.CENTER)
@@ -63,12 +69,15 @@ class MTermGridPanel(
 
     private val rootPanel = JPanel(BorderLayout()).apply {
         background = BACKGROUND
-        add(buildToolbar(), BorderLayout.NORTH)
+        add(toolbar, BorderLayout.NORTH)
         add(center, BorderLayout.CENTER)
     }
 
     init {
         refreshCount()
+        applyTheme()
+        ApplicationManager.getApplication().messageBus.connect(parentDisposable)
+            .subscribe(LafManagerListener.TOPIC, LafManagerListener { applyTheme() })
     }
 
     val component: JComponent
@@ -76,25 +85,34 @@ class MTermGridPanel(
 
     fun preferredFocusComponent(): JComponent? = panes.lastOrNull()?.component
 
-    private fun buildToolbar(): JComponent {
-        val bar = JPanel(BorderLayout()).apply {
-            background = PANEL
-            border = BorderFactory.createCompoundBorder(
+    private fun applyTheme() {
+        val islands = MTermColors.islandsEnabled
+        val canvas = if (islands) MTermColors.canvas else BACKGROUND
+        rootPanel.background = canvas
+        center.background = canvas
+        center.border = if (islands) JBUI.Borders.empty(MTermColors.islandGap) else JBUI.Borders.empty()
+        placeholder.background = canvas
+        toolbar.background = if (islands) canvas else PANEL
+        toolbar.border = if (islands) {
+            JBUI.Borders.empty(2, 8)
+        } else {
+            BorderFactory.createCompoundBorder(
                 BorderFactory.createMatteBorder(0, 0, 1, 0, BORDER),
                 JBUI.Borders.empty(1, 8),
             )
         }
+        tileGrid.refreshColors()
+        rootPanel.revalidate()
+        rootPanel.repaint()
+    }
+
+    private fun buildToolbar(): JPanel {
+        val bar = JPanel(BorderLayout())
         countLabel.font = JBUI.Fonts.smallFont()
         bar.add(countLabel, BorderLayout.WEST)
 
         columnsCombo.font = JBUI.Fonts.smallFont()
-        val addButton = JButton("Add agent").apply {
-            icon = AllIcons.General.Add
-            isFocusable = false
-            font = JBUI.Fonts.smallFont()
-            margin = JBUI.insets(1, 6)
-            addActionListener { showAddMenu(this) }
-        }
+        val addButton = buildAddButton()
         val east = JPanel(FlowLayout(FlowLayout.RIGHT, 6, 0)).apply {
             isOpaque = false
             add(JBLabel("Columns").apply { foreground = MUTED; font = JBUI.Fonts.smallFont() })
@@ -103,6 +121,50 @@ class MTermGridPanel(
         }
         bar.add(east, BorderLayout.EAST)
         return bar
+    }
+
+    private fun buildAddButton(): JComponent {
+        val arc = JBUI.scale(8)
+        val button = object : JBLabel("Add agent") {
+            var hovered = false
+
+            override fun paintComponent(g: Graphics) {
+                val g2 = g.create() as Graphics2D
+                try {
+                    g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
+                    g2.color = MTermColors.buttonBackground
+                    g2.fillRoundRect(0, 0, width, height, arc, arc)
+                    if (hovered) {
+                        g2.color = MTermColors.buttonHoverBackground
+                        g2.fillRoundRect(0, 0, width, height, arc, arc)
+                    }
+                } finally {
+                    g2.dispose()
+                }
+                super.paintComponent(g)
+            }
+        }
+        return button.apply {
+            icon = AllIcons.General.Add
+            font = JBUI.Fonts.smallFont()
+            iconTextGap = JBUI.scale(4)
+            foreground = TEXT
+            isOpaque = false
+            border = JBUI.Borders.empty(3, 8)
+            cursor = Cursor.getPredefinedCursor(Cursor.HAND_CURSOR)
+            addMouseListener(object : MouseAdapter() {
+                override fun mouseClicked(e: MouseEvent) = showAddMenu(button)
+                override fun mouseEntered(e: MouseEvent) {
+                    hovered = true
+                    repaint()
+                }
+
+                override fun mouseExited(e: MouseEvent) {
+                    hovered = false
+                    repaint()
+                }
+            })
+        }
     }
 
     private fun showAddMenu(anchor: JComponent) {
@@ -199,16 +261,13 @@ class MTermGridPanel(
     ) {
         private val nameLabel = JBLabel("  ${agent.displayName}").apply { foreground = TEXT }
 
-        val component: JPanel = JPanel(BorderLayout()).apply {
-            background = BACKGROUND
-            border = paneBorder()
+        val component: IslandTilePanel = IslandTilePanel(BorderLayout()).apply {
             add(buildHeader(), BorderLayout.NORTH)
             add(widget.component, BorderLayout.CENTER)
         }
 
         fun setDropHighlight(on: Boolean) {
-            component.border = if (on) DROP_BORDER else paneBorder()
-            component.repaint()
+            component.dropTarget = on
         }
 
         fun updateTitle(title: String) {
@@ -292,12 +351,7 @@ class MTermGridPanel(
         val BACKGROUND: Color get() = MTermColors.background
         val PANEL: Color get() = MTermColors.panel
         val BORDER: Color get() = MTermColors.border
-        val ACCENT: Color get() = MTermColors.accent
         val TEXT: Color get() = MTermColors.text
         val MUTED: Color get() = MTermColors.muted
-
-        fun paneBorder(): Border = BorderFactory.createLineBorder(BORDER, 1, true)
-
-        val DROP_BORDER: Border get() = BorderFactory.createLineBorder(ACCENT, 2, true)
     }
 }
