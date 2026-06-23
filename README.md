@@ -1,5 +1,14 @@
 # mTerm
 
+<p align="center">
+  <a href="https://plugins.jetbrains.com/plugin/32433">
+    <img alt="Get from JetBrains Marketplace" src="https://img.shields.io/badge/Get_from-JetBrains_Marketplace-000000?style=for-the-badge&logo=jetbrains&logoColor=white">
+  </a>
+  <br>
+  <a href="https://plugins.jetbrains.com/plugin/32433"><img alt="Version" src="https://img.shields.io/jetbrains/plugin/v/32433?style=flat-square&label=version"></a>
+  <a href="https://plugins.jetbrains.com/plugin/32433"><img alt="Downloads" src="https://img.shields.io/jetbrains/plugin/d/32433?style=flat-square&label=downloads"></a>
+</p>
+
 Run your terminals — and your AI coding agents — as real editor tabs in
 IntelliJ IDEA, including a resizable grid for working with several agents side by
 side.
