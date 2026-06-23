@@ -1,0 +1,56 @@
+# git-cliff configuration — https://git-cliff.org
+# Generuje CHANGELOG.md w formacie Keep a Changelog na podstawie Conventional Commits.
+
+[changelog]
+header = """
+# Changelog
+
+Wszystkie istotne zmiany w tym projekcie są dokumentowane w tym pliku.
+
+Format opiera się na [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+a projekt stosuje [Conventional Commits](https://www.conventionalcommits.org/).
+"""
+body = """
+{% if version %}\
+    ## [{{ version | trim_start_matches(pat="v") }}] - {{ timestamp | date(format="%Y-%m-%d") }}
+{% else %}\
+    ## [Unreleased]
+{% endif %}\
+{% for group, commits in commits | group_by(attribute="group") %}
+    ### {{ group | striptags | trim | upper_first }}
+    {% for commit in commits %}
+        - {% if commit.scope %}*({{ commit.scope }})* {% endif %}\
+            {% if commit.breaking %}[**breaking**] {% endif %}\
+            {{ commit.message | upper_first }}\
+    {% endfor %}
+{% endfor %}\n
+"""
+trim = true
+footer = ""
+
+[git]
+conventional_commits = true
+filter_unconventional = true
+split_commits = false
+protect_breaking_commits = false
+filter_commits = false
+topo_order = false
+sort_commits = "oldest"
+tag_pattern = "v[0-9]*"
+
+commit_parsers = [
+    { message = "^feat", group = "<!-- 0 -->Features" },
+    { message = "^fix", group = "<!-- 1 -->Bug Fixes" },
+    { message = "^perf", group = "<!-- 2 -->Performance" },
+    { message = "^refactor", group = "<!-- 3 -->Refactor" },
+    { message = "^docs?", group = "<!-- 4 -->Documentation" },
+    { message = "^style", group = "<!-- 5 -->Styling" },
+    { message = "^test", group = "<!-- 6 -->Testing" },
+    { message = "^chore\\(release\\):", skip = true },
+    { message = "^chore\\(deps\\)", skip = true },
+    { message = "^chore", group = "<!-- 7 -->Miscellaneous" },
+    { message = "^build", group = "<!-- 8 -->Build" },
+    { message = "^ci", skip = true },
+    { message = "^revert", group = "<!-- 9 -->Reverts" },
+    { body = ".*security", group = "<!-- 10 -->Security" },
+]

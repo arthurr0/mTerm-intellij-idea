@@ -1,8 +1,10 @@
+import org.jetbrains.changelog.markdownToHTML
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
     id("org.jetbrains.kotlin.jvm") version "2.4.0"
     id("org.jetbrains.intellij.platform")
+    id("org.jetbrains.changelog") version "2.2.1"
 }
 
 group = providers.gradleProperty("pluginGroup").get()
@@ -21,6 +23,26 @@ intellijPlatform {
         ideaVersion {
             sinceBuild = providers.gradleProperty("pluginSinceBuild")
             untilBuild = provider { null }
+        }
+        changeNotes = provider {
+            val notes = providers.environmentVariable("CHANGE_NOTES").getOrElse("")
+            if (notes.isBlank()) "" else markdownToHTML(notes)
+        }
+    }
+
+    signing {
+        certificateChain = providers.environmentVariable("CERTIFICATE_CHAIN")
+        privateKey = providers.environmentVariable("PRIVATE_KEY")
+        password = providers.environmentVariable("PRIVATE_KEY_PASSWORD")
+    }
+
+    publishing {
+        token = providers.environmentVariable("PUBLISH_TOKEN")
+    }
+
+    pluginVerification {
+        ides {
+            recommended()
         }
     }
 }
