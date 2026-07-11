@@ -4,7 +4,7 @@
 
     <description><![CDATA[
         <b>mTerm</b> opens terminal sessions as first-class editor tabs instead of tool-window panels.
-        Launch Claude Code, Codex, or a system terminal in its own tab, or open the
+        Launch Claude Code, Codex, Grok Build, or a system terminal in its own tab, or open the
         <b>mTerm</b> grid to run several agents side by side, resize and rearrange them,
         and get a sound when an agent finishes.
     ]]></description>
@@ -50,6 +50,10 @@
                     class="dev.mterm.actions.OpenCodexTabAction"
                     text="New Codex Tab"
                     description="Open a Codex terminal session as an editor tab"/>
+            <action id="mTerm.NewGrokBuild"
+                    class="dev.mterm.actions.OpenGrokBuildTabAction"
+                    text="New Grok Build Tab"
+                    description="Open a Grok Build terminal session as an editor tab"/>
             <action id="mTerm.NewSystemTerminal"
                     class="dev.mterm.actions.OpenSystemTerminalTabAction"
                     text="New System Terminal Tab"

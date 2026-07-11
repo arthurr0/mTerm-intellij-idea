@@ -25,8 +25,8 @@ already use.
   remove panes on the fly, choose the column count (`Auto` / `1` / `2` / `3` /
   `4`), drag the gutters to resize, and drag a pane by its header onto another to
   swap their positions.
-- **Claude Code, Codex & system shell** — start a session preconfigured for
-  Claude Code or Codex, or a plain system terminal.
+- **Claude Code, Codex, Grok Build & system shell** — start a session preconfigured for
+  Claude Code, Codex or Grok Build, or a plain system terminal.
 - **Finish sound** — get an audible chime when an agent finishes its turn, so you
   can step away while it works. Several built-in sounds, configurable per session
   type.

@@ -5,6 +5,7 @@ import com.intellij.openapi.components.Service
 import com.intellij.openapi.components.State
 import com.intellij.openapi.components.Storage
 import com.intellij.openapi.components.service
+import dev.mterm.AgentKind
 import dev.mterm.sound.AgentSound
 
 @Service(Service.Level.APP)
@@ -16,6 +17,7 @@ class MTermSettings : PersistentStateComponent<MTermSettings.State> {
         var soundId: String = AgentSound.CHIME.name
         var soundForShell: Boolean = false
         var reflectAgentTitle: Boolean = true
+        var enabledAgentNames: MutableSet<String> = mutableSetOf()
     }
 
     private var state = State()
@@ -24,6 +26,20 @@ class MTermSettings : PersistentStateComponent<MTermSettings.State> {
 
     override fun loadState(loaded: State) {
         state = loaded
+        ensureAllAgentsEnabledByDefault()
+    }
+
+    private fun ensureAllAgentsEnabledByDefault() {
+        val allNames = AgentKind.entries.map { it.name }.toSet()
+        if (state.enabledAgentNames.isEmpty()) {
+            state.enabledAgentNames.addAll(allNames)
+        } else {
+            allNames.forEach { name ->
+                if (!state.enabledAgentNames.contains(name)) {
+                    state.enabledAgentNames.add(name)
+                }
+            }
+        }
     }
 
     var soundEnabled: Boolean
@@ -41,6 +57,17 @@ class MTermSettings : PersistentStateComponent<MTermSettings.State> {
     var reflectAgentTitle: Boolean
         get() = state.reflectAgentTitle
         set(value) { state.reflectAgentTitle = value }
+
+    fun isAgentEnabled(kind: AgentKind): Boolean =
+        state.enabledAgentNames.contains(kind.name)
+
+    fun setAgentEnabled(kind: AgentKind, enabled: Boolean) {
+        if (enabled) {
+            state.enabledAgentNames.add(kind.name)
+        } else {
+            state.enabledAgentNames.remove(kind.name)
+        }
+    }
 
     companion object {
         fun getInstance(): MTermSettings = service()

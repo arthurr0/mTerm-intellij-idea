@@ -4,11 +4,14 @@ import com.intellij.openapi.options.Configurable
 import com.intellij.openapi.ui.ComboBox
 import com.intellij.ui.SimpleListCellRenderer
 import com.intellij.ui.components.JBCheckBox
+import com.intellij.ui.components.JBLabel
 import com.intellij.util.ui.FormBuilder
 import com.intellij.util.ui.JBUI
+import dev.mterm.AgentKind
 import dev.mterm.sound.AgentSound
 import dev.mterm.sound.SoundPlayer
 import java.awt.FlowLayout
+import javax.swing.BoxLayout
 import javax.swing.JButton
 import javax.swing.JComponent
 import javax.swing.JPanel
@@ -21,6 +24,7 @@ class MTermConfigurable : Configurable {
     }
     private val soundForShell = JBCheckBox("Also play for plain system terminals")
     private val reflectTitle = JBCheckBox("Show what the agent is doing in the pane title")
+    private val agentCheckboxes = mutableMapOf<AgentKind, JBCheckBox>()
 
     override fun getDisplayName(): String = "mTerm"
 
@@ -35,11 +39,23 @@ class MTermConfigurable : Configurable {
 
         soundEnabled.addActionListener { syncEnabled() }
 
+        val agentsPanel = JPanel().apply {
+            layout = BoxLayout(this, BoxLayout.Y_AXIS)
+        }
+        agentCheckboxes.clear()
+        for (kind in AgentKind.entries) {
+            val cb = JBCheckBox("${kind.glyph}  ${kind.displayName}")
+            agentCheckboxes[kind] = cb
+            agentsPanel.add(cb)
+        }
+
         val form = FormBuilder.createFormBuilder()
             .addComponent(soundEnabled)
             .addLabeledComponent("Sound:", soundRow)
             .addComponent(soundForShell)
             .addComponent(reflectTitle)
+            .addSeparator()
+            .addLabeledComponent("Visible launchers:", agentsPanel)
             .panel
         form.border = JBUI.Borders.empty(11)
 
@@ -55,10 +71,14 @@ class MTermConfigurable : Configurable {
 
     override fun isModified(): Boolean {
         val settings = MTermSettings.getInstance()
+        val agentsModified = agentCheckboxes.any { (kind, cb) ->
+            cb.isSelected != settings.isAgentEnabled(kind)
+        }
         return soundEnabled.isSelected != settings.soundEnabled ||
             soundCombo.item != settings.sound ||
             soundForShell.isSelected != settings.soundForShell ||
-            reflectTitle.isSelected != settings.reflectAgentTitle
+            reflectTitle.isSelected != settings.reflectAgentTitle ||
+            agentsModified
     }
 
     override fun apply() {
@@ -67,6 +87,9 @@ class MTermConfigurable : Configurable {
         settings.sound = soundCombo.item
         settings.soundForShell = soundForShell.isSelected
         settings.reflectAgentTitle = reflectTitle.isSelected
+        agentCheckboxes.forEach { (kind, cb) ->
+            settings.setAgentEnabled(kind, cb.isSelected)
+        }
     }
 
     override fun reset() {
@@ -75,6 +98,9 @@ class MTermConfigurable : Configurable {
         soundCombo.item = settings.sound
         soundForShell.isSelected = settings.soundForShell
         reflectTitle.isSelected = settings.reflectAgentTitle
+        agentCheckboxes.forEach { (kind, cb) ->
+            cb.isSelected = settings.isAgentEnabled(kind)
+        }
         syncEnabled()
     }
 }

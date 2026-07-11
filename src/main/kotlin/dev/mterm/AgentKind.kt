@@ -10,5 +10,6 @@ enum class AgentKind(
 ) {
     CLAUDE("Claude Code", "claude", "✻", Color(0xD9, 0x77, 0x57)),
     CODEX("Codex", "codex", "✦", Color(0x19, 0xC3, 0x7D)),
+    GROK_BUILD("Grok Build", "grok", "◆", Color(0x00, 0xB4, 0xD8)),
     SHELL("System Terminal", null, "❯", Color(0xCF, 0xD3, 0xD8)),
 }

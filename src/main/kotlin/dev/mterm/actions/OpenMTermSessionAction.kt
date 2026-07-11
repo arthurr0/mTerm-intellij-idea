@@ -7,6 +7,7 @@ import com.intellij.openapi.fileEditor.FileEditorManager
 import com.intellij.openapi.project.DumbAware
 import dev.mterm.AgentKind
 import dev.mterm.session.MTermSessionFile
+import dev.mterm.settings.MTermSettings
 
 abstract class OpenMTermSessionAction(private val agent: AgentKind) : AnAction(), DumbAware {
 
@@ -17,7 +18,9 @@ abstract class OpenMTermSessionAction(private val agent: AgentKind) : AnAction()
     }
 
     override fun update(e: AnActionEvent) {
-        e.presentation.isEnabledAndVisible = e.project != null
+        val projectOk = e.project != null
+        val enabled = MTermSettings.getInstance().isAgentEnabled(agent)
+        e.presentation.isEnabledAndVisible = projectOk && enabled
     }
 
     override fun getActionUpdateThread(): ActionUpdateThread = ActionUpdateThread.BGT
@@ -26,5 +29,7 @@ abstract class OpenMTermSessionAction(private val agent: AgentKind) : AnAction()
 class OpenClaudeCodeTabAction : OpenMTermSessionAction(AgentKind.CLAUDE)
 
 class OpenCodexTabAction : OpenMTermSessionAction(AgentKind.CODEX)
+
+class OpenGrokBuildTabAction : OpenMTermSessionAction(AgentKind.GROK_BUILD)
 
 class OpenSystemTerminalTabAction : OpenMTermSessionAction(AgentKind.SHELL)

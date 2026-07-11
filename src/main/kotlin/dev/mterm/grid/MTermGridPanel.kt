@@ -11,6 +11,7 @@ import com.intellij.ui.components.JBLabel
 import com.intellij.util.ui.JBUI
 import dev.mterm.AgentKind
 import dev.mterm.session.MTermSessionLauncher
+import dev.mterm.settings.MTermSettings
 import dev.mterm.ui.MTermColors
 import java.awt.BorderLayout
 import java.awt.Color
@@ -169,7 +170,8 @@ class MTermGridPanel(
 
     private fun showAddMenu(anchor: JComponent) {
         val menu = JPopupMenu()
-        for (agent in AgentKind.entries) {
+        val settings = MTermSettings.getInstance()
+        for (agent in AgentKind.entries.filter { settings.isAgentEnabled(it) }) {
             val item = JMenuItem("${agent.glyph}  ${agent.displayName}")
             item.addActionListener { addAgent(agent) }
             menu.add(item)
