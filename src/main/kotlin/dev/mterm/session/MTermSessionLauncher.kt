@@ -5,7 +5,8 @@ import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.project.Project
 import com.intellij.terminal.ui.TerminalWidget
 import com.intellij.util.Alarm
-import dev.mterm.AgentKind
+import dev.mterm.agents.AgentActivity
+import dev.mterm.agents.AgentProfile
 import dev.mterm.settings.MTermSettings
 import dev.mterm.sound.SoundPlayer
 import dev.mterm.terminal.BellAwareTerminalRunner
@@ -24,32 +25,45 @@ object MTermSessionLauncher {
     fun launch(
         project: Project,
         parent: Disposable,
-        agent: AgentKind,
+        profile: AgentProfile,
         workingDirectory: String?,
         onTitleChange: (String) -> Unit = {},
+        onActivityChange: (AgentActivity) -> Unit = {},
     ): TerminalWidget {
         val settings = MTermSettings.getInstance()
         val soundAlarm = Alarm(Alarm.ThreadToUse.POOLED_THREAD, parent)
         var wasSpinning = false
         var lastShown: String? = null
+        var lastActivity = AgentActivity.IDLE
+
+        fun publishActivity(activity: AgentActivity) {
+            if (activity == lastActivity) return
+            lastActivity = activity
+            ApplicationManager.getApplication().invokeLater { onActivityChange(activity) }
+        }
 
         fun scheduleCompletionSound() {
-            val mutedForShell = agent == AgentKind.SHELL && !settings.soundForShell
+            val mutedForShell = profile.isShell && !settings.soundForShell
             if (!settings.soundEnabled || mutedForShell) return
             soundAlarm.cancelAllRequests()
             soundAlarm.addRequest({ SoundPlayer.play(settings.sound) }, COMPLETION_DELAY_MS)
         }
 
         val onActivity = { hadBell: Boolean ->
-            if (hadBell) scheduleCompletionSound()
+            if (hadBell) {
+                scheduleCompletionSound()
+                publishActivity(AgentActivity.ATTENTION)
+            }
         }
 
         val onTitle = { raw: String ->
             val spinning = raw.any { it.code in BRAILLE_START..BRAILLE_END }
             if (spinning) {
                 soundAlarm.cancelAllRequests()
+                publishActivity(AgentActivity.BUSY)
             } else if (wasSpinning) {
                 scheduleCompletionSound()
+                publishActivity(AgentActivity.ATTENTION)
             }
             wasSpinning = spinning
 
@@ -65,11 +79,11 @@ object MTermSessionLauncher {
         val runner = BellAwareTerminalRunner(project, onActivity, onTitle)
 
         val options = ShellStartupOptions.Builder()
-            .workingDirectory(workingDirectory)
+            .workingDirectory(workingDirectory ?: profile.workingDirectory ?: project.basePath)
             .build()
         val widget = runner.startShellTerminalWidget(parent, options, true)
 
-        agent.command?.let { widget.sendCommandToExecute(it) }
+        profile.command?.let { widget.sendCommandToExecute(it) }
         return widget
     }
 
