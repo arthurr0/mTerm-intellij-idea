@@ -4,9 +4,10 @@
 
     <description><![CDATA[
         <b>mTerm</b> opens terminal sessions as first-class editor tabs instead of tool-window panels.
-        Launch Claude Code, Codex, Grok Build, or a system terminal in its own tab, or open the
-        <b>mTerm</b> grid to run several agents side by side, resize and rearrange them,
-        and get a sound when an agent finishes.
+        Launch Claude Code, Codex, Grok Build, your own custom agents, or a system terminal in its own tab,
+        or open the <b>mTerm</b> grid to run several agents side by side, resize and rearrange them,
+        broadcast one prompt to all of them, and see at a glance which one is working and which one
+        is waiting for you.
     ]]></description>
 
     <depends>com.intellij.modules.platform</depends>
@@ -19,10 +20,13 @@
         <fileEditorProvider implementation="dev.mterm.session.MTermSessionEditorProvider"/>
         <fileEditorProvider implementation="dev.mterm.grid.MTermGridEditorProvider"/>
         <applicationService serviceImplementation="dev.mterm.settings.MTermSettings"/>
+        <applicationService serviceImplementation="dev.mterm.agents.AgentRegistry"/>
+        <projectService serviceImplementation="dev.mterm.grid.MTermLayoutStore"/>
         <applicationConfigurable parentId="tools"
                                  id="dev.mterm.settings"
                                  displayName="mTerm"
                                  instance="dev.mterm.settings.MTermConfigurable"/>
+        <notificationGroup id="mTerm" displayType="BALLOON"/>
     </extensions>
 
     <projectListeners>
@@ -42,22 +46,7 @@
                 <add-to-group group-id="MainToolbarRight" anchor="first"/>
             </action>
             <separator/>
-            <action id="mTerm.NewClaudeCode"
-                    class="dev.mterm.actions.OpenClaudeCodeTabAction"
-                    text="New Claude Code Tab"
-                    description="Open a Claude Code terminal session as an editor tab"/>
-            <action id="mTerm.NewCodex"
-                    class="dev.mterm.actions.OpenCodexTabAction"
-                    text="New Codex Tab"
-                    description="Open a Codex terminal session as an editor tab"/>
-            <action id="mTerm.NewGrokBuild"
-                    class="dev.mterm.actions.OpenGrokBuildTabAction"
-                    text="New Grok Build Tab"
-                    description="Open a Grok Build terminal session as an editor tab"/>
-            <action id="mTerm.NewSystemTerminal"
-                    class="dev.mterm.actions.OpenSystemTerminalTabAction"
-                    text="New System Terminal Tab"
-                    description="Open a system terminal session as an editor tab"/>
+            <group id="mTerm.Agents" class="dev.mterm.actions.MTermAgentActionGroup"/>
         </group>
     </actions>
 </idea-plugin>
