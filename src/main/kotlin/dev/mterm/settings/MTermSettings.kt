@@ -5,7 +5,6 @@ import com.intellij.openapi.components.Service
 import com.intellij.openapi.components.State
 import com.intellij.openapi.components.Storage
 import com.intellij.openapi.components.service
-import dev.mterm.AgentKind
 import dev.mterm.sound.AgentSound
 
 @Service(Service.Level.APP)
@@ -17,6 +16,11 @@ class MTermSettings : PersistentStateComponent<MTermSettings.State> {
         var soundId: String = AgentSound.CHIME.name
         var soundForShell: Boolean = false
         var reflectAgentTitle: Boolean = true
+        var notifyEnabled: Boolean = true
+        var notifyOnlyWhenIdeUnfocused: Boolean = true
+        var restoreLayout: Boolean = true
+        var showActivityIndicator: Boolean = true
+        var highlightFocusedPane: Boolean = true
         var enabledAgentNames: MutableSet<String> = mutableSetOf()
     }
 
@@ -26,20 +30,6 @@ class MTermSettings : PersistentStateComponent<MTermSettings.State> {
 
     override fun loadState(loaded: State) {
         state = loaded
-        ensureAllAgentsEnabledByDefault()
-    }
-
-    private fun ensureAllAgentsEnabledByDefault() {
-        val allNames = AgentKind.entries.map { it.name }.toSet()
-        if (state.enabledAgentNames.isEmpty()) {
-            state.enabledAgentNames.addAll(allNames)
-        } else {
-            allNames.forEach { name ->
-                if (!state.enabledAgentNames.contains(name)) {
-                    state.enabledAgentNames.add(name)
-                }
-            }
-        }
     }
 
     var soundEnabled: Boolean
@@ -58,15 +48,32 @@ class MTermSettings : PersistentStateComponent<MTermSettings.State> {
         get() = state.reflectAgentTitle
         set(value) { state.reflectAgentTitle = value }
 
-    fun isAgentEnabled(kind: AgentKind): Boolean =
-        state.enabledAgentNames.contains(kind.name)
+    var notifyEnabled: Boolean
+        get() = state.notifyEnabled
+        set(value) { state.notifyEnabled = value }
 
-    fun setAgentEnabled(kind: AgentKind, enabled: Boolean) {
-        if (enabled) {
-            state.enabledAgentNames.add(kind.name)
-        } else {
-            state.enabledAgentNames.remove(kind.name)
-        }
+    var notifyOnlyWhenIdeUnfocused: Boolean
+        get() = state.notifyOnlyWhenIdeUnfocused
+        set(value) { state.notifyOnlyWhenIdeUnfocused = value }
+
+    var restoreLayout: Boolean
+        get() = state.restoreLayout
+        set(value) { state.restoreLayout = value }
+
+    var showActivityIndicator: Boolean
+        get() = state.showActivityIndicator
+        set(value) { state.showActivityIndicator = value }
+
+    var highlightFocusedPane: Boolean
+        get() = state.highlightFocusedPane
+        set(value) { state.highlightFocusedPane = value }
+
+    fun consumeLegacyAgentNames(): Set<String>? {
+        val names = state.enabledAgentNames
+        if (names.isEmpty()) return null
+        val copy = names.toSet()
+        names.clear()
+        return copy
     }
 
     companion object {

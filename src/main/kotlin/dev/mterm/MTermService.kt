@@ -60,7 +60,7 @@ class MTermService(private val project: Project) : Disposable {
     }
 
     private fun releaseSession(file: MTermSessionFile) {
-        thisLogger().info("mTerm: releasing terminal session ${file.agent.displayName}")
+        thisLogger().info("mTerm: releasing terminal session ${file.profile.displayName}")
         sessionDisposables.remove(file)?.let { Disposer.dispose(it) }
         sessionViews.remove(file)
     }

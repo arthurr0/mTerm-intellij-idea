@@ -3,33 +3,36 @@ package dev.mterm.actions
 import com.intellij.openapi.actionSystem.ActionUpdateThread
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
+import com.intellij.openapi.actionSystem.ActionGroup
 import com.intellij.openapi.fileEditor.FileEditorManager
 import com.intellij.openapi.project.DumbAware
-import dev.mterm.AgentKind
+import dev.mterm.agents.AgentProfile
+import dev.mterm.agents.AgentRegistry
 import dev.mterm.session.MTermSessionFile
-import dev.mterm.settings.MTermSettings
 
-abstract class OpenMTermSessionAction(private val agent: AgentKind) : AnAction(), DumbAware {
+class OpenAgentTabAction(private val profile: AgentProfile) :
+    AnAction("New ${profile.displayName} Tab", "Open a ${profile.displayName} session as an editor tab", null),
+    DumbAware {
 
     override fun actionPerformed(e: AnActionEvent) {
         val project = e.project ?: return
-        val file = MTermSessionFile(agent, project.basePath)
+        val file = MTermSessionFile(profile, profile.workingDirectory ?: project.basePath)
         FileEditorManager.getInstance(project).openFile(file, true)
     }
 
     override fun update(e: AnActionEvent) {
-        val projectOk = e.project != null
-        val enabled = MTermSettings.getInstance().isAgentEnabled(agent)
-        e.presentation.isEnabledAndVisible = projectOk && enabled
+        e.presentation.isEnabledAndVisible = e.project != null
     }
 
     override fun getActionUpdateThread(): ActionUpdateThread = ActionUpdateThread.BGT
 }
 
-class OpenClaudeCodeTabAction : OpenMTermSessionAction(AgentKind.CLAUDE)
+class MTermAgentActionGroup : ActionGroup(), DumbAware {
 
-class OpenCodexTabAction : OpenMTermSessionAction(AgentKind.CODEX)
+    override fun getChildren(e: AnActionEvent?): Array<AnAction> =
+        AgentRegistry.getInstance().enabledProfiles()
+            .map { OpenAgentTabAction(it) }
+            .toTypedArray()
 
-class OpenGrokBuildTabAction : OpenMTermSessionAction(AgentKind.GROK_BUILD)
-
-class OpenSystemTerminalTabAction : OpenMTermSessionAction(AgentKind.SHELL)
+    override fun getActionUpdateThread(): ActionUpdateThread = ActionUpdateThread.BGT
+}

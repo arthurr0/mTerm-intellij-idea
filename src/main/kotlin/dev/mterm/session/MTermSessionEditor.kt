@@ -20,7 +20,7 @@ class MTermSessionEditor(
 
     override fun getPreferredFocusedComponent(): JComponent? = view.preferredFocusComponent()
 
-    override fun getName(): String = file.agent.displayName
+    override fun getName(): String = file.profile.displayName
 
     override fun setState(state: FileEditorState) {}
 

@@ -2,13 +2,13 @@ package dev.mterm.session
 
 import com.intellij.openapi.fileTypes.FileType
 import com.intellij.testFramework.LightVirtualFile
-import dev.mterm.AgentKind
+import dev.mterm.agents.AgentProfile
 import java.util.concurrent.atomic.AtomicInteger
 
 class MTermSessionFile(
-    val agent: AgentKind,
+    val profile: AgentProfile,
     val workingDirectory: String?,
-) : LightVirtualFile("${agent.displayName} ${counter.incrementAndGet()}", MTermSessionFileType, "") {
+) : LightVirtualFile("${profile.displayName} ${counter.incrementAndGet()}", MTermSessionFileType, "") {
 
     init {
         isWritable = false
