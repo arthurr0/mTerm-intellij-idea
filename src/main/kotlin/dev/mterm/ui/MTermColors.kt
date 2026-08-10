@@ -1,5 +1,6 @@
 package dev.mterm.ui
 
+import com.intellij.execution.ui.ConsoleViewContentType
 import com.intellij.openapi.editor.colors.EditorColorsManager
 import com.intellij.ui.JBColor
 import com.intellij.ui.scale.JBUIScale
@@ -11,7 +12,10 @@ import javax.swing.UIManager
 internal object MTermColors {
 
     val background: Color
-        get() = EditorColorsManager.getInstance().globalScheme.defaultBackground
+        get() {
+            val scheme = EditorColorsManager.getInstance().globalScheme
+            return scheme.getColor(ConsoleViewContentType.CONSOLE_BACKGROUND_KEY) ?: scheme.defaultBackground
+        }
 
     val panel: Color
         get() = UIUtil.getPanelBackground()
@@ -24,6 +28,9 @@ internal object MTermColors {
 
     val muted: Color
         get() = UIUtil.getContextHelpForeground()
+
+    val disabled: Color
+        get() = UIUtil.getLabelDisabledForeground()
 
     val accent: Color
         get() = JBUI.CurrentTheme.Focus.focusColor()
@@ -49,6 +56,8 @@ internal object MTermColors {
     val islandArc: Int
         get() = JBUIScale.scale(UIManager.getInt("Island.arc").takeIf { it > 0 } ?: 20)
 
-    val islandGap: Int
-        get() = JBUIScale.scale(8)
+    const val TILE_GAP = 8
+
+    val tileGap: Int
+        get() = JBUIScale.scale(TILE_GAP)
 }
