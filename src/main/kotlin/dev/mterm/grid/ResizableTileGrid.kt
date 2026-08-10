@@ -21,11 +21,24 @@ class ResizableTileGrid : JPanel(null) {
     private var colFractions = DoubleArray(0)
     private var rowFractions = DoubleArray(0)
 
+    var onFractionsChanged: (() -> Unit)? = null
+
+    var maximizedTile: JComponent? = null
+        set(value) {
+            if (field === value) return
+            field = value
+            revalidate()
+            repaint()
+        }
+
     init {
         background = GAP
     }
 
+    val columns: Int? get() = columnsSetting
+
     fun setColumnsSetting(value: Int?) {
+        if (columnsSetting == value) return
         columnsSetting = value
         rebuild(preserveFractions = false)
     }
@@ -37,6 +50,8 @@ class ResizableTileGrid : JPanel(null) {
     }
 
     fun setTiles(newTiles: List<JComponent>) {
+        val vanished = maximizedTile?.takeIf { it !in newTiles }
+        if (vanished != null) maximizedTile = null
         tiles.clear()
         tiles.addAll(newTiles)
         rebuild(preserveFractions = false)
@@ -47,6 +62,23 @@ class ResizableTileGrid : JPanel(null) {
         tiles.addAll(newTiles)
         rebuild(preserveFractions = true)
     }
+
+    fun restoreLayout(newTiles: List<JComponent>, columns: Int?, cols: DoubleArray, rows: DoubleArray) {
+        tiles.clear()
+        tiles.addAll(newTiles)
+        columnsSetting = columns
+        maximizedTile = null
+        rebuild(preserveFractions = false)
+        val (shapeCols, shapeRows) = gridShape()
+        if (cols.size == shapeCols) colFractions = cols.copyOf()
+        if (rows.size == shapeRows) rowFractions = rows.copyOf()
+        revalidate()
+        repaint()
+    }
+
+    fun columnFractions(): DoubleArray = colFractions.copyOf()
+
+    fun rowFractions(): DoubleArray = rowFractions.copyOf()
 
     private fun gridShape(): IntArray {
         val n = tiles.size
@@ -102,14 +134,25 @@ class ResizableTileGrid : JPanel(null) {
 
     override fun doLayout() {
         if (tiles.isEmpty()) return
+
+        val maximized = maximizedTile?.takeIf { it in tiles }
+        if (maximized != null) {
+            for (tile in tiles) tile.isVisible = tile === maximized
+            for (divider in dividers) divider.isVisible = false
+            maximized.setBounds(0, 0, width, height)
+            return
+        }
+        for (tile in tiles) tile.isVisible = true
+        for (divider in dividers) divider.isVisible = true
+
         val (cols, rows) = gridShape()
         if (colFractions.size != cols) colFractions = DoubleArray(cols) { 1.0 / cols }
         if (rowFractions.size != rows) rowFractions = DoubleArray(rows) { 1.0 / rows }
 
         val w = width
         val h = height
-        val availW = max(1, w - (cols - 1) * GAP_SIZE)
-        val availH = max(1, h - (rows - 1) * GAP_SIZE)
+        val availW = max(1, w - (cols - 1) * gapSize)
+        val availH = max(1, h - (rows - 1) * gapSize)
 
         val colX = IntArray(cols)
         val colW = IntArray(cols)
@@ -117,7 +160,7 @@ class ResizableTileGrid : JPanel(null) {
         for (c in 0 until cols) {
             colX[c] = x
             colW[c] = (colFractions[c] * availW).toInt()
-            x += colW[c] + GAP_SIZE
+            x += colW[c] + gapSize
         }
         colW[cols - 1] = max(1, w - colX[cols - 1])
 
@@ -127,7 +170,7 @@ class ResizableTileGrid : JPanel(null) {
         for (r in 0 until rows) {
             rowY[r] = y
             rowH[r] = (rowFractions[r] * availH).toInt()
-            y += rowH[r] + GAP_SIZE
+            y += rowH[r] + gapSize
         }
         rowH[rows - 1] = max(1, h - rowY[rows - 1])
 
@@ -139,9 +182,9 @@ class ResizableTileGrid : JPanel(null) {
 
         for (d in dividers) {
             if (d.vertical) {
-                d.setBounds(colX[d.boundary] + colW[d.boundary], 0, GAP_SIZE, h)
+                d.setBounds(colX[d.boundary] + colW[d.boundary], 0, gapSize, h)
             } else {
-                d.setBounds(colX[d.track], rowY[d.boundary] + rowH[d.boundary], colW[d.track], GAP_SIZE)
+                d.setBounds(colX[d.track], rowY[d.boundary] + rowH[d.boundary], colW[d.track], gapSize)
             }
         }
     }
@@ -183,9 +226,9 @@ class ResizableTileGrid : JPanel(null) {
                 override fun mousePressed(e: MouseEvent) {
                     val (cols, rows) = gridShape()
                     total = if (vertical) {
-                        max(1, this@ResizableTileGrid.width - (cols - 1) * GAP_SIZE)
+                        max(1, this@ResizableTileGrid.width - (cols - 1) * gapSize)
                     } else {
-                        max(1, this@ResizableTileGrid.height - (rows - 1) * GAP_SIZE)
+                        max(1, this@ResizableTileGrid.height - (rows - 1) * gapSize)
                     }
                     pressScreen = if (vertical) e.xOnScreen else e.yOnScreen
                     snapshot = (if (vertical) colFractions else rowFractions).copyOf()
@@ -200,6 +243,7 @@ class ResizableTileGrid : JPanel(null) {
                 override fun mouseReleased(e: MouseEvent) {
                     background = GAP
                     repaint()
+                    onFractionsChanged?.invoke()
                 }
 
                 override fun mouseEntered(e: MouseEvent) {
@@ -231,7 +275,7 @@ class ResizableTileGrid : JPanel(null) {
     private class Cell(val paneIndex: Int, val col: Int, val startRow: Int, val endRow: Int)
 
     private companion object {
-        const val GAP_SIZE = 8
+        val gapSize: Int get() = MTermColors.tileGap
         const val MIN_FRACTION = 0.08
         val GAP: Color get() = if (MTermColors.islandsEnabled) MTermColors.canvas else MTermColors.panel
         val LINE: Color get() = MTermColors.border
