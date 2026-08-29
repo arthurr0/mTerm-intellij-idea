@@ -21,6 +21,8 @@ class MTermSettings : PersistentStateComponent<MTermSettings.State> {
         var restoreLayout: Boolean = true
         var showActivityIndicator: Boolean = true
         var highlightFocusedPane: Boolean = true
+        var trackAgentChanges: Boolean = true
+        var changeRetentionDays: Int = 7
         var enabledAgentNames: MutableSet<String> = mutableSetOf()
     }
 
@@ -67,6 +69,14 @@ class MTermSettings : PersistentStateComponent<MTermSettings.State> {
     var highlightFocusedPane: Boolean
         get() = state.highlightFocusedPane
         set(value) { state.highlightFocusedPane = value }
+
+    var trackAgentChanges: Boolean
+        get() = state.trackAgentChanges
+        set(value) { state.trackAgentChanges = value }
+
+    var changeRetentionDays: Int
+        get() = state.changeRetentionDays
+        set(value) { state.changeRetentionDays = value }
 
     fun consumeLegacyAgentNames(): Set<String>? {
         val names = state.enabledAgentNames

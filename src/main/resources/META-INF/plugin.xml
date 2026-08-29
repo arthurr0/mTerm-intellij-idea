@@ -11,6 +11,7 @@
     ]]></description>
 
     <depends>com.intellij.modules.platform</depends>
+    <depends>com.intellij.modules.vcs</depends>
     <depends>org.jetbrains.plugins.terminal</depends>
 
     <extensions defaultExtensionNs="com.intellij">
@@ -22,6 +23,13 @@
         <applicationService serviceImplementation="dev.mterm.settings.MTermSettings"/>
         <applicationService serviceImplementation="dev.mterm.agents.AgentRegistry"/>
         <projectService serviceImplementation="dev.mterm.grid.MTermLayoutStore"/>
+        <projectService serviceImplementation="dev.mterm.changes.AgentChangeTracker"/>
+        <projectService serviceImplementation="dev.mterm.changes.AgentChangeStore"/>
+        <projectService serviceImplementation="dev.mterm.changes.ui.AgentChangesUi"/>
+        <toolWindow id="Agent Changes"
+                    anchor="right"
+                    icon="/icons/mterm.svg"
+                    factoryClass="dev.mterm.changes.ui.AgentChangesToolWindowFactory"/>
         <applicationConfigurable parentId="tools"
                                  id="dev.mterm.settings"
                                  displayName="mTerm"
@@ -45,6 +53,10 @@
                     description="Open the mTerm multi-agent terminal grid in an editor tab">
                 <add-to-group group-id="MainToolbarRight" anchor="first"/>
             </action>
+            <action id="mTerm.OpenChanges"
+                    class="dev.mterm.actions.OpenAgentChangesAction"
+                    text="Show Agent Changes"
+                    description="Open the tool window with the files each agent changed"/>
             <separator/>
             <group id="mTerm.Agents" class="dev.mterm.actions.MTermAgentActionGroup"/>
         </group>

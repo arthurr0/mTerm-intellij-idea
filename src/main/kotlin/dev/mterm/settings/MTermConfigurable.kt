@@ -2,6 +2,7 @@ package dev.mterm.settings
 
 import com.intellij.openapi.options.Configurable
 import com.intellij.openapi.ui.ComboBox
+import com.intellij.ui.JBIntSpinner
 import com.intellij.ui.ToolbarDecorator
 import com.intellij.ui.components.JBCheckBox
 import com.intellij.ui.components.JBLabel
@@ -37,6 +38,8 @@ class MTermConfigurable : Configurable {
     private val notifyEnabled = JBCheckBox("Show an IDE notification when an agent finishes")
     private val notifyOnlyUnfocused = JBCheckBox("Only when the IDE window is in the background")
     private val restoreLayout = JBCheckBox("Restore the grid layout when the project reopens")
+    private val trackChanges = JBCheckBox("Record the files each agent changes, turn by turn")
+    private val retentionDays = JBIntSpinner(7, 1, 90)
 
     private val tableModel = AgentTableModel()
     private val agentTable = JBTable(tableModel).apply {
@@ -67,6 +70,7 @@ class MTermConfigurable : Configurable {
 
         soundEnabled.addActionListener { syncEnabled() }
         notifyEnabled.addActionListener { syncEnabled() }
+        trackChanges.addActionListener { syncEnabled() }
 
         val tablePanel = ToolbarDecorator.createDecorator(agentTable)
             .setAddAction {
@@ -98,6 +102,11 @@ class MTermConfigurable : Configurable {
             .addComponent(highlightFocused)
             .addComponent(restoreLayout)
             .addSeparator(JBUI.scale(8))
+            .addComponent(sectionLabel("Agent changes"))
+            .addComponent(trackChanges)
+            .addLabeledComponent("Keep snapshots for (days):", retentionDays)
+            .addComponent(hint("Snapshots live as git refs under refs/mterm/ and never touch your index, history or working tree."))
+            .addSeparator(JBUI.scale(8))
             .addComponent(sectionLabel("When an agent finishes"))
             .addComponent(soundEnabled)
             .addLabeledComponent("Sound:", soundRow)
@@ -128,6 +137,7 @@ class MTermConfigurable : Configurable {
         soundCombo.isEnabled = soundOn
         soundForShell.isEnabled = soundOn
         notifyOnlyUnfocused.isEnabled = notifyEnabled.isSelected
+        retentionDays.isEnabled = trackChanges.isSelected
     }
 
     override fun isModified(): Boolean {
@@ -141,6 +151,8 @@ class MTermConfigurable : Configurable {
             notifyEnabled.isSelected != settings.notifyEnabled ||
             notifyOnlyUnfocused.isSelected != settings.notifyOnlyWhenIdeUnfocused ||
             restoreLayout.isSelected != settings.restoreLayout ||
+            trackChanges.isSelected != settings.trackAgentChanges ||
+            retentionDays.number != settings.changeRetentionDays ||
             tableModel.rows != AgentRegistry.getInstance().profiles()
     }
 
@@ -155,6 +167,8 @@ class MTermConfigurable : Configurable {
         settings.notifyEnabled = notifyEnabled.isSelected
         settings.notifyOnlyWhenIdeUnfocused = notifyOnlyUnfocused.isSelected
         settings.restoreLayout = restoreLayout.isSelected
+        settings.trackAgentChanges = trackChanges.isSelected
+        settings.changeRetentionDays = retentionDays.number
         AgentRegistry.getInstance().replaceAll(tableModel.rows)
     }
 
@@ -169,6 +183,8 @@ class MTermConfigurable : Configurable {
         notifyEnabled.isSelected = settings.notifyEnabled
         notifyOnlyUnfocused.isSelected = settings.notifyOnlyWhenIdeUnfocused
         restoreLayout.isSelected = settings.restoreLayout
+        trackChanges.isSelected = settings.trackAgentChanges
+        retentionDays.number = settings.changeRetentionDays
         tableModel.replaceAll(AgentRegistry.getInstance().profiles())
         syncEnabled()
     }

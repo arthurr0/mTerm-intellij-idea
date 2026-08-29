@@ -9,6 +9,8 @@ import com.intellij.ui.components.JBLabel
 import com.intellij.util.ui.JBUI
 import dev.mterm.agents.AgentActivity
 import dev.mterm.agents.AgentProfile
+import dev.mterm.changes.AgentChangeTracker
+import dev.mterm.changes.ui.AgentChangesUi
 import dev.mterm.session.MTermSessionLauncher
 import dev.mterm.settings.MTermSettings
 import dev.mterm.ui.ActivityDot
@@ -59,6 +61,17 @@ class AgentPane(
 
     private val activityDot = ActivityDot(profile.color)
 
+    private val changesLabel = JBLabel().apply {
+        font = JBUI.Fonts.smallFont()
+        foreground = MTermColors.muted
+        cursor = Cursor.getPredefinedCursor(Cursor.HAND_CURSOR)
+        isVisible = false
+        toolTipText = "Files this agent changed — click to open Agent Changes"
+        addMouseListener(object : MouseAdapter() {
+            override fun mouseClicked(e: MouseEvent) = AgentChangesUi.getInstance(project).show(sessionId)
+        })
+    }
+
     private val broadcastToggle = HeaderButton(glyphText = BROADCAST_ON, tooltip = "Included in broadcast") {
         includedInBroadcast = !includedInBroadcast
     }
@@ -73,6 +86,8 @@ class AgentPane(
         isOpaque = false
         border = contentBorder()
     }
+
+    private var sessionId: String? = null
 
     private var widget: TerminalWidget = createWidget()
 
@@ -98,6 +113,22 @@ class AgentPane(
     init {
         terminalHolder.add(widget.component, BorderLayout.CENTER)
         setBroadcastControlsVisible(false)
+        project.messageBus.connect(paneDisposable).subscribe(
+            AgentChangeTracker.TOPIC,
+            object : AgentChangeTracker.Listener {
+                override fun changesUpdated() = refreshChangeCount()
+            },
+        )
+    }
+
+    private fun refreshChangeCount() {
+        val key = sessionId
+        val record = key?.let { id ->
+            AgentChangeTracker.getInstance(project).sessions().firstOrNull { it.id == id }
+        }
+        val count = record?.changedPaths?.size ?: 0
+        changesLabel.text = if (count == 0) "" else "Δ $count"
+        changesLabel.isVisible = count > 0
     }
 
     val focusComponent: JComponent? get() = widget.preferredFocusableComponent
@@ -132,6 +163,8 @@ class AgentPane(
         Disposer.dispose(sessionDisposable)
         terminalHolder.removeAll()
         sessionDisposable = Disposer.newDisposable(paneDisposable, "mterm-session")
+        sessionId = null
+        refreshChangeCount()
         widget = createWidget()
         terminalHolder.add(widget.component, BorderLayout.CENTER)
         nameLabel.text = profile.displayName
@@ -148,6 +181,10 @@ class AgentPane(
         workingDirectory = profile.workingDirectory ?: project.basePath,
         onTitleChange = ::updateTitle,
         onActivityChange = ::onActivityChanged,
+        onSessionOpened = { session ->
+            sessionId = session.sessionId
+            refreshChangeCount()
+        },
     )
 
     private fun onActivityChanged(next: AgentActivity) {
@@ -172,6 +209,7 @@ class AgentPane(
         header.border = headerBorder()
         terminalHolder.border = contentBorder()
         nameLabel.foreground = MTermColors.text
+        changesLabel.foreground = MTermColors.muted
         broadcastToggle.refreshColors()
         closeButton.refreshColors()
         component.revalidate()
@@ -223,6 +261,7 @@ class AgentPane(
                 anchor = GridBagConstraints.CENTER
                 insets = JBUI.insetsLeft(ACTION_GAP)
             }
+            add(changesLabel, constraints)
             add(broadcastToggle, constraints)
             add(restartButton, constraints)
             add(maximizeButton, constraints)

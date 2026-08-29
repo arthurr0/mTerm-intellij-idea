@@ -36,6 +36,11 @@ already use.
   shell entries are only defaults. Add your own (name, command, glyph, colour,
   working directory) or give the built-ins extra flags — anything that runs in a
   terminal works.
+- **Changes per agent** — every turn an agent takes is snapshotted, so the
+  **Agent Changes** tool window shows exactly which files Claude, Codex or your
+  own agent touched, turn by turn. Open any file in the regular IntelliJ diff,
+  copy the patch, or roll a whole turn back. Snapshots are plain git trees kept
+  under `refs/mterm/`, so your index, history and working tree stay untouched.
 - **Restored layout** — panes, column count and the proportions you dragged come
   back when you reopen the project.
 - **Finish sound & IDE notification** — get an audible chime when an agent
@@ -51,7 +56,11 @@ Open the grid from the mTerm icon in the main toolbar, or from
 **Tools → mTerm → Open mTerm Grid**. Individual sessions live under the same
 **Tools → mTerm** menu.
 
-Configure agents, sounds, notifications and pane behaviour in
+Open the change history from **Tools → mTerm → Show Agent Changes**, from the
+`Δ` counter in a pane header, or from the **Agent Changes** tool window on the
+right.
+
+Configure agents, sounds, notifications, change tracking and pane behaviour in
 **Settings → Tools → mTerm**.
 
 ### Shortcuts

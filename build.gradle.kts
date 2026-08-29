@@ -1,4 +1,5 @@
 import org.jetbrains.changelog.markdownToHTML
+import org.jetbrains.intellij.platform.gradle.TestFrameworkType
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
@@ -14,7 +15,11 @@ dependencies {
     intellijPlatform {
         intellijIdea(providers.gradleProperty("platformVersion").get())
         bundledPlugin("org.jetbrains.plugins.terminal")
+        bundledModule("intellij.platform.vcs.impl")
+        testFramework(TestFrameworkType.Platform)
     }
+
+    testImplementation("junit:junit:4.13.2")
 }
 
 intellijPlatform {
