@@ -2,10 +2,10 @@ package dev.mterm.settings
 
 import com.intellij.openapi.options.Configurable
 import com.intellij.openapi.ui.ComboBox
-import com.intellij.ui.SimpleListCellRenderer
 import com.intellij.ui.ToolbarDecorator
 import com.intellij.ui.components.JBCheckBox
 import com.intellij.ui.components.JBLabel
+import com.intellij.ui.dsl.listCellRenderer.textListCellRenderer
 import com.intellij.ui.table.JBTable
 import com.intellij.util.ui.FormBuilder
 import com.intellij.util.ui.JBUI
@@ -28,7 +28,7 @@ class MTermConfigurable : Configurable {
 
     private val soundEnabled = JBCheckBox("Play a sound when an agent finishes (terminal bell)")
     private val soundCombo = ComboBox(AgentSound.entries.toTypedArray()).apply {
-        renderer = SimpleListCellRenderer.create("") { it.displayName }
+        renderer = textListCellRenderer("") { it.displayName }
     }
     private val soundForShell = JBCheckBox("Also play for plain system terminals")
     private val reflectTitle = JBCheckBox("Show what the agent is doing in the pane title")
