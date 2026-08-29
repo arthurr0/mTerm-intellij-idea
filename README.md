@@ -71,7 +71,7 @@ Double-clicking a pane header maximises it too.
 
 ## Requirements
 
-IntelliJ IDEA 2024.3 or newer, with the bundled **Terminal** plugin enabled.
+IntelliJ IDEA 2026.2 or newer, with the bundled **Terminal** plugin enabled.
 
 ## Building from source
 
@@ -80,7 +80,7 @@ IntelliJ IDEA 2024.3 or newer, with the bundled **Terminal** plugin enabled.
 ./gradlew buildPlugin   # produce build/distributions/*.zip
 ```
 
-Building requires JDK 21.
+Building requires JDK 25.
 
 ## Contributing
 
