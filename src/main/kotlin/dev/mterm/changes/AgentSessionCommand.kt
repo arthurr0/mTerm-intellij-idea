@@ -15,8 +15,18 @@ internal object AgentSessionCommand {
         return "$command --session-id $sessionId"
     }
 
-    private const val CLAUDE_BINARY = "claude"
+    fun isContextReset(line: String): Boolean {
+        val trimmed = line.trim()
+        if (!trimmed.startsWith("/")) return false
+        val name = trimmed.removePrefix("/").substringBefore(' ')
+        if (name.length < MIN_RESET_LENGTH) return false
+        return RESET_COMMANDS.any { it.startsWith(name) }
+    }
 
+    private const val CLAUDE_BINARY = "claude"
+    private const val MIN_RESET_LENGTH = 3
+
+    private val RESET_COMMANDS = listOf("clear", "new")
     private val CONFLICTING_FLAGS = setOf("--session-id", "--resume", "-r", "--continue", "-c", "--fork-session")
     private val WHITESPACE = Regex("\\s+")
 }

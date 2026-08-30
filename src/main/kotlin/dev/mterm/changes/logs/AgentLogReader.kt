@@ -7,6 +7,8 @@ interface AgentLogReader {
 
     fun touchedPaths(fromMs: Long, toMs: Long): Set<String>
 
+    fun contextClearedSince(sinceMs: Long): Boolean = false
+
     companion object {
 
         fun create(profile: AgentProfile, agentSessionId: String?, workingDirectory: Path): AgentLogReader? = when {

@@ -2,6 +2,7 @@ package dev.mterm.changes.logs
 
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -81,6 +82,44 @@ class ClaudeLogReaderTest {
     }
 
     @Test
+    fun `a clear command is reported as a context reset`() {
+        val file = Files.createTempFile("claude", ".jsonl")
+        try {
+            Files.writeString(file, entry(1_000, "Write", "/work/a.kt") + command(5_000, "/clear"))
+            val reader = ClaudeLogReader(file)
+
+            assertTrue(reader.contextClearedSince(0))
+            assertFalse(reader.contextClearedSince(6_000))
+        } finally {
+            Files.deleteIfExists(file)
+        }
+    }
+
+    @Test
+    fun `a clear inside structured content is also recognised`() {
+        val file = Files.createTempFile("claude", ".jsonl")
+        try {
+            Files.writeString(file, structuredCommand(5_000, "/clear"))
+
+            assertTrue(ClaudeLogReader(file).contextClearedSince(0))
+        } finally {
+            Files.deleteIfExists(file)
+        }
+    }
+
+    @Test
+    fun `ordinary prompts are not treated as a reset`() {
+        val file = Files.createTempFile("claude", ".jsonl")
+        try {
+            Files.writeString(file, structuredCommand(5_000, "please clear the cache"))
+
+            assertFalse(ClaudeLogReader(file).contextClearedSince(0))
+        } finally {
+            Files.deleteIfExists(file)
+        }
+    }
+
+    @Test
     fun `session files are located by project slug`() {
         val slug = "-work-project"
         val projects = home.resolve(".claude/projects/$slug")
@@ -120,6 +159,20 @@ class ClaudeLogReaderTest {
         return """{"type":"assistant","sessionId":"s","timestamp":"$instant","cwd":"/work",""" +
             """"message":{"role":"assistant","content":[{"type":"tool_use","name":"$tool","input":$input}]}}""" +
             "\n"
+    }
+
+    private fun command(timestamp: Long, name: String): String {
+        val instant = Instant.ofEpochMilli(timestamp)
+        val content = "<command-name>$name</command-name><command-message>clear</command-message>"
+        return """{"type":"user","sessionId":"s","timestamp":"$instant","cwd":"/work",""" +
+            """"message":{"role":"user","content":"$content"}}""" + "\n"
+    }
+
+    private fun structuredCommand(timestamp: Long, text: String): String {
+        val instant = Instant.ofEpochMilli(timestamp)
+        val body = if (text.startsWith("/")) "<command-name>$text</command-name>" else text
+        return """{"type":"user","sessionId":"s","timestamp":"$instant","cwd":"/work",""" +
+            """"message":{"role":"user","content":[{"type":"text","text":"$body"}]}}""" + "\n"
     }
 
     private fun delete(directory: Path) {

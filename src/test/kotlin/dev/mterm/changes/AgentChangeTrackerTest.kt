@@ -19,6 +19,7 @@ import org.junit.Test
 import java.awt.Color
 import java.nio.file.Files
 import java.nio.file.Path
+import java.nio.file.StandardOpenOption
 
 class AgentChangeTrackerTest {
 
@@ -228,6 +229,155 @@ class AgentChangeTrackerTest {
     }
 
     @Test
+    fun `committed changes stop being reported`() {
+        val handle = recordTurn()
+
+        assertEquals(1, tracker.sessions().single().turns.size)
+
+        TestGit.commitAll(repo, "agent work")
+        tracker.refreshNow()
+        tracker.awaitIdle()
+
+        assertTrue(tracker.sessions().single().turns.isEmpty())
+        assertTrue(tracker.sessions().single().changedPaths.isEmpty())
+        assertNotNull(handle)
+    }
+
+    @Test
+    fun `a partially committed turn keeps only what still waits`() {
+        val handle = openSession()
+        handle.onActivity(AgentActivity.BUSY)
+        tracker.awaitIdle()
+        TestGit.write(repo, "src/Main.kt", "two\n")
+        TestGit.write(repo, "src/Second.kt", "second\n")
+        handle.onActivity(AgentActivity.ATTENTION)
+        tracker.awaitIdle()
+
+        TestGit.run(repo, "add", "src/Main.kt")
+        TestGit.run(repo, "commit", "-m", "half of it")
+        tracker.refreshNow()
+        tracker.awaitIdle()
+
+        assertEquals(listOf("src/Second.kt"), tracker.sessions().single().turns.single().changes.map { it.path })
+    }
+
+    @Test
+    fun `a finished session disappears once everything is committed`() {
+        val handle = recordTurn()
+        handle.close()
+        tracker.awaitIdle()
+
+        TestGit.commitAll(repo, "agent work")
+        tracker.refreshNow()
+        tracker.awaitIdle()
+
+        assertTrue(tracker.sessions().isEmpty())
+    }
+
+    @Test
+    fun `history returns when a commit is undone`() {
+        recordTurn()
+        TestGit.commitAll(repo, "agent work")
+        tracker.refreshNow()
+        tracker.awaitIdle()
+        assertTrue(tracker.sessions().single().turns.isEmpty())
+
+        TestGit.run(repo, "reset", "--soft", "HEAD~1")
+        tracker.refreshNow()
+        tracker.awaitIdle()
+
+        assertEquals(listOf("src/Main.kt"), tracker.sessions().single().changedPaths)
+    }
+
+    @Test
+    fun `typing a clear command wipes the recorded turns`() {
+        val handle = recordTurn()
+
+        handle.onInput("/clear\r")
+        tracker.awaitIdle()
+
+        assertTrue(tracker.sessions().single().turns.isEmpty())
+    }
+
+    @Test
+    fun `a new command wipes them as well`() {
+        val handle = recordTurn()
+
+        handle.onInput("/new")
+        handle.onInput("\r")
+        tracker.awaitIdle()
+
+        assertTrue(tracker.sessions().single().turns.isEmpty())
+    }
+
+    @Test
+    fun `backspaces are taken into account before deciding`() {
+        val handle = recordTurn()
+
+        handle.onInput("/clearx\u007f\r")
+        tracker.awaitIdle()
+
+        assertTrue(tracker.sessions().single().turns.isEmpty())
+    }
+
+    @Test
+    fun `other slash commands leave the history alone`() {
+        val handle = recordTurn()
+
+        handle.onInput("/compact\r")
+        handle.onInput("please /clear the list\r")
+        tracker.awaitIdle()
+
+        assertEquals(1, tracker.sessions().single().turns.size)
+    }
+
+    @Test
+    fun `turn numbering restarts after a reset`() {
+        val handle = recordTurn()
+        handle.onInput("/clear\r")
+        tracker.awaitIdle()
+
+        handle.onActivity(AgentActivity.BUSY)
+        tracker.awaitIdle()
+        TestGit.write(repo, "src/Third.kt", "third\n")
+        handle.onActivity(AgentActivity.ATTENTION)
+        tracker.awaitIdle()
+
+        assertEquals(listOf(1), tracker.sessions().single().turns.map { it.ordinal })
+    }
+
+    @Test
+    fun `a clear found in the agent log resets the session`() {
+        val home = Files.createTempDirectory("mterm-home")
+        val originalHome = System.getProperty("user.home")
+        System.setProperty("user.home", home.toString())
+        try {
+            val handle = tracker.openSession(profile(command = "claude"), repo.toString())!!
+            val agentSessionId = handle.decorate("claude")!!.substringAfterLast(' ')
+            val log = home.resolve(".claude/projects/${repo.toString().replace(Regex("[^A-Za-z0-9]"), "-")}")
+            Files.createDirectories(log)
+            val file = log.resolve("$agentSessionId.jsonl")
+            Files.writeString(file, toolUse(System.currentTimeMillis()))
+
+            handle.onActivity(AgentActivity.BUSY)
+            tracker.awaitIdle()
+            TestGit.write(repo, "src/Main.kt", "two\n")
+            handle.onActivity(AgentActivity.ATTENTION)
+            tracker.awaitIdle()
+            assertEquals(1, tracker.sessions().single().turns.size)
+
+            Files.writeString(file, clearCommand(System.currentTimeMillis() + 500), StandardOpenOption.APPEND)
+            handle.onActivity(AgentActivity.BUSY)
+            tracker.awaitIdle()
+
+            assertTrue(tracker.sessions().single().turns.isEmpty())
+        } finally {
+            System.setProperty("user.home", originalHome)
+            TestGit.delete(home)
+        }
+    }
+
+    @Test
     fun `no session is opened when tracking is switched off`() {
         MTermSettings.getInstance().trackAgentChanges = false
 
@@ -259,6 +409,28 @@ class AgentChangeTrackerTest {
     }
 
     private fun openSession(): AgentSessionHandle = tracker.openSession(profile(), repo.toString())!!
+
+    private fun recordTurn(): AgentSessionHandle {
+        val handle = openSession()
+        handle.onActivity(AgentActivity.BUSY)
+        tracker.awaitIdle()
+        TestGit.write(repo, "src/Main.kt", "two\n")
+        handle.onActivity(AgentActivity.ATTENTION)
+        tracker.awaitIdle()
+        return handle
+    }
+
+    private fun toolUse(timestamp: Long): String {
+        val instant = java.time.Instant.ofEpochMilli(timestamp)
+        return """{"type":"assistant","timestamp":"$instant","message":{"role":"assistant",""" +
+            """"content":[{"type":"tool_use","name":"Write","input":{"file_path":"$repo/src/Main.kt"}}]}}""" + "\n"
+    }
+
+    private fun clearCommand(timestamp: Long): String {
+        val instant = java.time.Instant.ofEpochMilli(timestamp)
+        return """{"type":"user","timestamp":"$instant","message":{"role":"user",""" +
+            """"content":"<command-name>/clear</command-name>"}}""" + "\n"
+    }
 
     private fun profile(command: String? = "agent-under-test") = AgentProfile(
         id = "TEST",

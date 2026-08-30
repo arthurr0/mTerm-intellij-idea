@@ -39,7 +39,10 @@ already use.
 - **Changes per agent** — every turn an agent takes is snapshotted, so the
   **Agent Changes** tool window shows exactly which files Claude, Codex or your
   own agent touched, turn by turn. Open any file in the regular IntelliJ diff,
-  copy the patch, or roll a whole turn back. Snapshots are plain git trees kept
+  copy the patch, or roll a whole turn back. The list only ever shows work that
+  is still uncommitted: once you or the agent commit a file, it drops off the
+  list and out of the pane counter. Clearing the agent's context with `/clear`
+  or `/new` resets that pane's history too. Snapshots are plain git trees kept
   under `refs/mterm/`, so your index, history and working tree stay untouched.
 - **Restored layout** — panes, column count and the proportions you dragged come
   back when you reopen the project.

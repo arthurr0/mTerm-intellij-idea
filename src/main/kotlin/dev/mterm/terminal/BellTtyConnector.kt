@@ -7,6 +7,7 @@ class BellTtyConnector(
     private val delegate: TtyConnector,
     private val onActivity: (hadBell: Boolean) -> Unit,
     private val onTitle: (String) -> Unit,
+    private val onInput: (String) -> Unit = {},
 ) : TtyConnector {
 
     private var state = NORMAL
@@ -71,9 +72,15 @@ class BellTtyConnector(
         }
     }
 
-    override fun write(bytes: ByteArray) = delegate.write(bytes)
+    override fun write(bytes: ByteArray) {
+        onInput(String(bytes, Charsets.UTF_8))
+        delegate.write(bytes)
+    }
 
-    override fun write(string: String) = delegate.write(string)
+    override fun write(string: String) {
+        onInput(string)
+        delegate.write(string)
+    }
 
     override fun isConnected(): Boolean = delegate.isConnected
 

@@ -5,6 +5,10 @@ import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.components.service
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.vfs.VirtualFileManager
+import com.intellij.openapi.vfs.newvfs.BulkFileListener
+import com.intellij.openapi.vfs.newvfs.events.VFileEvent
+import com.intellij.util.Alarm
 import com.intellij.util.concurrency.AppExecutorUtil
 import com.intellij.util.messages.Topic
 import org.jetbrains.annotations.TestOnly
@@ -25,9 +29,22 @@ class AgentChangeTracker(private val project: Project) : Disposable {
     }
 
     private val executor = AppExecutorUtil.createBoundedApplicationPoolExecutor("mTerm agent changes", 1)
+    private val refreshAlarm = Alarm(Alarm.ThreadToUse.POOLED_THREAD, this)
     private val live = LinkedHashMap<String, LiveSession>()
     private val records = LinkedHashMap<String, AgentSessionRecord>()
+    private val pendingByRepo = HashMap<String, Set<String>>()
     private var loaded = false
+
+    init {
+        project.messageBus.connect(this).subscribe(
+            VirtualFileManager.VFS_CHANGES,
+            object : BulkFileListener {
+                override fun after(events: MutableList<out VFileEvent>) {
+                    if (events.any { it.path.contains(GIT_DIRECTORY) }) scheduleRefresh()
+                }
+            },
+        )
+    }
 
     @Volatile
     private var published: List<AgentSessionRecord> = emptyList()
@@ -50,6 +67,19 @@ class AgentChangeTracker(private val project: Project) : Disposable {
         return AgentSessionHandle(this, sessionId, agentSessionId)
     }
 
+    fun refreshNow() {
+        executor.execute {
+            ensureLoaded()
+            publish()
+        }
+    }
+
+    private fun scheduleRefresh() {
+        if (refreshAlarm.isDisposed) return
+        refreshAlarm.cancelAllRequests()
+        refreshAlarm.addRequest(::refreshNow, REFRESH_DELAY_MS)
+    }
+
     fun clearHistory() {
         executor.execute {
             ensureLoaded()
@@ -67,6 +97,13 @@ class AgentChangeTracker(private val project: Project) : Disposable {
                 AgentActivity.BUSY -> beginTurn(session, at)
                 AgentActivity.ATTENTION, AgentActivity.IDLE -> finishTurn(session, at)
             }
+        }
+    }
+
+    internal fun resetSession(sessionId: String) {
+        executor.execute {
+            val session = live[sessionId] ?: return@execute
+            applyReset(session)
         }
     }
 
@@ -110,7 +147,16 @@ class AgentChangeTracker(private val project: Project) : Disposable {
         publish()
     }
 
+    private fun applyReset(session: LiveSession) {
+        session.reset()
+        val record = records[session.id] ?: return
+        records[session.id] = record.copy(turns = emptyList(), startedAt = System.currentTimeMillis())
+        persist()
+        publish()
+    }
+
     private fun beginTurn(session: LiveSession, at: Long) {
+        if (session.consumeContextClear()) applyReset(session)
         if (session.baseTree != null) return
         val tree = GitCli.snapshot(session.repoRoot) ?: return
         session.baseTree = tree
@@ -195,8 +241,31 @@ class AgentChangeTracker(private val project: Project) : Disposable {
         AgentChangeStore.getInstance(project).save(history.filter { it.turns.isNotEmpty() })
     }
 
+    private fun refreshPending() {
+        val repos = records.values.mapTo(mutableSetOf()) { it.repoRoot }
+        pendingByRepo.keys.retainAll(repos)
+        for (repo in repos) {
+            val paths = GitCli.pendingPaths(Path.of(repo))
+            if (paths == null) pendingByRepo.remove(repo) else pendingByRepo[repo] = paths
+        }
+    }
+
+    private fun uncommitted(record: AgentSessionRecord): AgentSessionRecord? {
+        val pending = pendingByRepo[record.repoRoot] ?: return record
+        val turns = record.turns.mapNotNull { turn ->
+            val changes = turn.changes.filter { it.path in pending }
+            if (changes.isEmpty()) null else turn.copy(changes = changes)
+        }
+        return when {
+            turns.isNotEmpty() -> record.copy(turns = turns)
+            record.live -> record.copy(turns = emptyList())
+            else -> null
+        }
+    }
+
     private fun publish() {
-        published = records.values.reversed().toList()
+        refreshPending()
+        published = records.values.reversed().mapNotNull { uncommitted(it) }
         ApplicationManager.getApplication().invokeLater({
             if (project.isDisposed) return@invokeLater
             project.messageBus.syncPublisher(TOPIC).changesUpdated()
@@ -227,6 +296,25 @@ class AgentChangeTracker(private val project: Project) : Disposable {
         private val windows = ArrayDeque<LongRange>()
         private var reader: AgentLogReader? = null
         private var readerResolved = false
+        private var lastResetCheck: Long = System.currentTimeMillis()
+
+        fun reset() {
+            baseTree = null
+            turnStartedAt = 0
+            title = null
+            ordinal = 0
+            windows.clear()
+            reader = null
+            readerResolved = false
+            lastResetCheck = System.currentTimeMillis()
+        }
+
+        fun consumeContextClear(): Boolean {
+            val log = reader ?: resolveReader() ?: return false
+            val since = lastResetCheck
+            lastResetCheck = System.currentTimeMillis()
+            return runCatching { log.contextClearedSince(since) }.getOrDefault(false)
+        }
 
         fun remember(from: Long, to: Long) {
             windows.addLast(from..to)
@@ -268,6 +356,8 @@ class AgentChangeTracker(private val project: Project) : Disposable {
         private const val MAX_SESSIONS = 40
         private const val MAX_TITLE = 60
         private const val AWAIT_TIMEOUT_SECONDS = 60L
+        private const val REFRESH_DELAY_MS = 700
+        private const val GIT_DIRECTORY = "/.git/"
 
         private val LEADING_SYMBOLS = Regex("^[^\\p{L}\\p{N}]+")
         private val WHITESPACE = Regex("\\s+")
@@ -282,11 +372,36 @@ class AgentSessionHandle internal constructor(
     private val agentSessionId: String?,
 ) {
 
+    private val input = StringBuilder()
+
     fun decorate(command: String?): String? = AgentSessionCommand.decorate(command, agentSessionId)
+
+    fun onInput(text: String) {
+        for (character in text) {
+            when {
+                character == '\r' || character == '\n' -> {
+                    val line = input.toString()
+                    input.setLength(0)
+                    if (AgentSessionCommand.isContextReset(line)) tracker.resetSession(sessionId)
+                }
+
+                character == '\u007f' || character == '\b' -> if (input.isNotEmpty()) {
+                    input.setLength(input.length - 1)
+                }
+
+                character.isISOControl() -> input.setLength(0)
+                input.length < MAX_INPUT -> input.append(character)
+            }
+        }
+    }
 
     fun onActivity(activity: AgentActivity) = tracker.activity(sessionId, activity)
 
     fun onTitle(raw: String) = tracker.title(sessionId, raw)
 
     fun close() = tracker.closeSession(sessionId)
+
+    private companion object {
+        const val MAX_INPUT = 200
+    }
 }

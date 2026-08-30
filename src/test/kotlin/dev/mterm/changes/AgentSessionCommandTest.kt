@@ -36,6 +36,26 @@ class AgentSessionCommandTest {
     }
 
     @Test
+    fun `context reset commands are recognised`() {
+        assertTrue(AgentSessionCommand.isContextReset("/clear"))
+        assertTrue(AgentSessionCommand.isContextReset("  /clear  "))
+        assertTrue(AgentSessionCommand.isContextReset("/cle"))
+        assertTrue(AgentSessionCommand.isContextReset("/new"))
+        assertTrue(AgentSessionCommand.isContextReset("/new some name"))
+    }
+
+    @Test
+    fun `other slash commands and prompts are left alone`() {
+        assertFalse(AgentSessionCommand.isContextReset("/compact"))
+        assertFalse(AgentSessionCommand.isContextReset("/config"))
+        assertFalse(AgentSessionCommand.isContextReset("/co"))
+        assertFalse(AgentSessionCommand.isContextReset("/ne"))
+        assertFalse(AgentSessionCommand.isContextReset("clear"))
+        assertFalse(AgentSessionCommand.isContextReset("please run /clear"))
+        assertFalse(AgentSessionCommand.isContextReset(""))
+    }
+
+    @Test
     fun `decorate appends the flag only when both parts are present`() {
         assertEquals("claude --session-id abc", AgentSessionCommand.decorate("claude", "abc"))
         assertEquals("claude", AgentSessionCommand.decorate("claude", null))

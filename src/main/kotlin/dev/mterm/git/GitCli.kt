@@ -81,6 +81,26 @@ object GitCli {
         return changes
     }
 
+    fun pendingPaths(repo: Path): Set<String>? {
+        val result = text(repo, listOf("status", "--porcelain", "-z", "--untracked-files=all"), timeoutMs = SNAPSHOT_TIMEOUT_MS)
+        if (!result.ok) return null
+        val tokens = result.output.split(NUL).filter { it.isNotEmpty() }
+        val paths = mutableSetOf<String>()
+        var index = 0
+        while (index < tokens.size) {
+            val token = tokens[index]
+            index++
+            if (token.length < STATUS_PREFIX) continue
+            val status = token.take(2)
+            paths += token.substring(STATUS_PREFIX)
+            if (status.contains('R') || status.contains('C')) {
+                tokens.getOrNull(index)?.let { paths += it }
+                index++
+            }
+        }
+        return paths
+    }
+
     fun blob(repo: Path, tree: String, path: String): ByteArray? {
         val result = binary(repo, listOf("show", "$tree:$path"))
         return if (result.ok) result.output.toByteArray(StandardCharsets.ISO_8859_1) else null
@@ -159,6 +179,7 @@ object GitCli {
     }
 
     private const val NUL = '\u0000'
+    private const val STATUS_PREFIX = 3
     private const val EXECUTABLE = "git"
     private const val DEFAULT_TIMEOUT_MS = 15_000
     private const val SNAPSHOT_TIMEOUT_MS = 60_000

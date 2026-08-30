@@ -56,7 +56,7 @@ class AgentChangesPanel(
         tree.showsRootHandles = true
         tree.selectionModel.selectionMode = TreeSelectionModel.SINGLE_TREE_SELECTION
         tree.cellRenderer = NodeRenderer()
-        tree.emptyText.text = "No agent turns recorded yet"
+        tree.emptyText.text = "No uncommitted agent changes"
         tree.addTreeSelectionListener { showSelection() }
 
         browser.hideViewerBorder()
@@ -145,7 +145,7 @@ class AgentChangesPanel(
 
     private fun buildToolbar(): javax.swing.JComponent {
         val group = DefaultActionGroup(
-            action("Refresh", AllIcons.Actions.Refresh) { refresh() },
+            action("Refresh", AllIcons.Actions.Refresh) { AgentChangeTracker.getInstance(project).refreshNow() },
             action("Revert Turn", AllIcons.Actions.Rollback) { revert() },
             action("Copy Patch", AllIcons.Actions.Copy) { copyPatch() },
             action("Clear History", AllIcons.Actions.GC) { clearHistory() },

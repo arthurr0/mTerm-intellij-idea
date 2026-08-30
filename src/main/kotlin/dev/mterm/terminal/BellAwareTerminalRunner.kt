@@ -9,8 +9,9 @@ class BellAwareTerminalRunner(
     project: Project,
     private val onActivity: (hadBell: Boolean) -> Unit,
     private val onTitle: (String) -> Unit,
+    private val onInput: (String) -> Unit = {},
 ) : LocalTerminalDirectRunner(project) {
 
     override fun createTtyConnector(options: ShellStartupOptions): TtyConnector =
-        BellTtyConnector(super.createTtyConnector(options), onActivity, onTitle)
+        BellTtyConnector(super.createTtyConnector(options), onActivity, onTitle, onInput)
 }

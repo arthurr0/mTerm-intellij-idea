@@ -171,6 +171,63 @@ class GitCliTest {
     }
 
     @Test
+    fun `pending paths list everything that is not in HEAD`() {
+        TestGit.write(repo, "kept.txt", "changed\n")
+        TestGit.write(repo, "untracked.txt", "brand new\n")
+        TestGit.write(repo, "staged.txt", "staged\n")
+        TestGit.run(repo, "add", "staged.txt")
+        Files.delete(repo.resolve("removed.txt"))
+
+        val pending = GitCli.pendingPaths(repo)!!
+
+        assertEquals(setOf("kept.txt", "untracked.txt", "staged.txt", "removed.txt"), pending)
+    }
+
+    @Test
+    fun `a clean repository has nothing pending`() {
+        assertEquals(emptySet<String>(), GitCli.pendingPaths(repo))
+    }
+
+    @Test
+    fun `committed work disappears from pending paths`() {
+        TestGit.write(repo, "kept.txt", "changed\n")
+        assertEquals(setOf("kept.txt"), GitCli.pendingPaths(repo))
+
+        TestGit.commitAll(repo, "agent work")
+
+        assertEquals(emptySet<String>(), GitCli.pendingPaths(repo))
+    }
+
+    @Test
+    fun `ignored files are not pending`() {
+        TestGit.write(repo, ".gitignore", "build/\n")
+        TestGit.commitAll(repo, "ignore rules")
+        TestGit.write(repo, "build/output.bin", "junk\n")
+
+        assertEquals(emptySet<String>(), GitCli.pendingPaths(repo))
+    }
+
+    @Test
+    fun `a renamed file reports both paths as pending`() {
+        TestGit.run(repo, "mv", "kept.txt", "moved.txt")
+
+        val pending = GitCli.pendingPaths(repo)!!
+
+        assertTrue(pending.contains("moved.txt"))
+        assertTrue(pending.contains("kept.txt"))
+    }
+
+    @Test
+    fun `pending paths are unknown outside a repository`() {
+        val outside = Files.createTempDirectory("mterm-not-a-repo")
+        try {
+            assertNull(GitCli.pendingPaths(outside))
+        } finally {
+            TestGit.delete(outside)
+        }
+    }
+
+    @Test
     fun `snapshot works in a repository without commits`() {
         val fresh = TestGit.initRepository()
         try {

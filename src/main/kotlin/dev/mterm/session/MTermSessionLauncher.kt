@@ -39,10 +39,15 @@ object MTermSessionLauncher {
             },
             onTitleChange,
         )
-        val runner = BellAwareTerminalRunner(project, monitor::onBell) { raw ->
-            handle?.onTitle(raw)
-            monitor.onTitle(raw)
-        }
+        val runner = BellAwareTerminalRunner(
+            project = project,
+            onActivity = monitor::onBell,
+            onTitle = { raw ->
+                handle?.onTitle(raw)
+                monitor.onTitle(raw)
+            },
+            onInput = { text -> handle?.onInput(text) },
+        )
 
         val options = ShellStartupOptions.Builder()
             .workingDirectory(directory)
