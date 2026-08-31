@@ -13,7 +13,7 @@ import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.Messages
 import com.intellij.openapi.ui.SimpleToolWindowPanel
 import com.intellij.openapi.vcs.changes.Change
-import com.intellij.openapi.vcs.changes.ui.SimpleChangesBrowser
+import com.intellij.openapi.vcs.changes.ui.SimpleAsyncChangesBrowser
 import com.intellij.openapi.vfs.LocalFileSystem
 import com.intellij.openapi.vfs.VfsUtil
 import com.intellij.ui.ColoredTreeCellRenderer
@@ -49,7 +49,7 @@ class AgentChangesPanel(
     private val root = DefaultMutableTreeNode()
     private val treeModel = DefaultTreeModel(root)
     private val tree = Tree(treeModel)
-    private val browser = SimpleChangesBrowser(project, emptyList())
+    private val browser = SimpleAsyncChangesBrowser(project, false, false)
 
     init {
         tree.isRootVisible = false
