@@ -5,7 +5,9 @@ import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.Disposer
 import com.intellij.terminal.ui.TerminalWidget
 import dev.mterm.agents.AgentActivity
+import dev.mterm.agents.AgentLaunchSpec
 import dev.mterm.agents.AgentProfile
+import dev.mterm.agents.LaunchOptions
 import dev.mterm.changes.AgentChangeTracker
 import dev.mterm.changes.AgentSessionHandle
 import dev.mterm.terminal.AgentActivityMonitor
@@ -19,6 +21,7 @@ object MTermSessionLauncher {
         parent: Disposable,
         profile: AgentProfile,
         workingDirectory: String?,
+        launchOptions: LaunchOptions = LaunchOptions.NONE,
         onTitleChange: (String) -> Unit = {},
         onActivityChange: (AgentActivity) -> Unit = {},
         onSessionOpened: (AgentSessionHandle) -> Unit = {},
@@ -54,7 +57,8 @@ object MTermSessionLauncher {
             .build()
         val widget = runner.startShellTerminalWidget(parent, options, true)
 
-        val command = handle?.decorate(profile.command) ?: profile.command
+        val base = profile.command?.let { AgentLaunchSpec.forCommand(it)?.apply(it, launchOptions) ?: it }
+        val command = handle?.decorate(base) ?: base
         command?.let { widget.sendCommandToExecute(it) }
         return widget
     }

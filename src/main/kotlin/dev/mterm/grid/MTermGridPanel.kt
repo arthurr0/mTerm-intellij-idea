@@ -15,8 +15,10 @@ import com.intellij.util.ui.JBUI
 import dev.mterm.agents.AgentActivity
 import dev.mterm.agents.AgentProfile
 import dev.mterm.agents.AgentRegistry
+import dev.mterm.agents.LaunchOptions
 import dev.mterm.notify.MTermNotifier
 import dev.mterm.settings.MTermSettings
+import dev.mterm.ui.LaunchOptionsDialog
 import dev.mterm.ui.MTermColors
 import dev.mterm.vfs.MTermFileSystem
 import java.awt.BorderLayout
@@ -148,7 +150,7 @@ class MTermGridPanel(
         val menu = JPopupMenu()
         for (profile in AgentRegistry.getInstance().enabledProfiles()) {
             val item = JMenuItem("${profile.glyph}  ${profile.displayName}")
-            item.addActionListener { addAgent(profile) }
+            item.addActionListener { startAgent(profile) }
             menu.add(item)
         }
         if (menu.componentCount == 0) {
@@ -157,8 +159,13 @@ class MTermGridPanel(
         menu.show(anchor, 0, anchor.height)
     }
 
-    private fun addAgent(profile: AgentProfile) {
-        val pane = AgentPane(project, profile, parentDisposable, paneCallbacks)
+    private fun startAgent(profile: AgentProfile) {
+        val options = LaunchOptionsDialog.prompt(profile) ?: return
+        addAgent(profile, options)
+    }
+
+    private fun addAgent(profile: AgentProfile, options: LaunchOptions) {
+        val pane = AgentPane(project, profile, parentDisposable, paneCallbacks, options)
         panes.add(pane)
         relayout()
         saveLayout()
@@ -224,13 +231,17 @@ class MTermGridPanel(
         if (!MTermSettings.getInstance().restoreLayout) return
         val store = MTermLayoutStore.getInstance(project)
         val registry = AgentRegistry.getInstance()
-        val profiles = store.agentIds.mapNotNull { registry.find(it) }
-        if (profiles.isEmpty()) return
+        val restored = store.agentIds.mapIndexedNotNull { index, id ->
+            registry.find(id)?.let { profile -> profile to store.launchOptions(index) }
+        }
+        if (restored.isEmpty()) return
 
         restoring = true
         try {
             toolbar.setColumns(store.columns)
-            profiles.forEach { panes.add(AgentPane(project, it, parentDisposable, paneCallbacks)) }
+            restored.forEach { (profile, options) ->
+                panes.add(AgentPane(project, profile, parentDisposable, paneCallbacks, options))
+            }
             tileGrid.restoreLayout(
                 panes.map { it.component },
                 store.columns,
@@ -250,6 +261,7 @@ class MTermGridPanel(
         if (restoring) return
         MTermLayoutStore.getInstance(project).save(
             agentIds = panes.map { it.profile.id },
+            launchOptions = panes.map { it.launchOptions },
             columns = tileGrid.columns,
             colFractions = tileGrid.columnFractions(),
             rowFractions = tileGrid.rowFractions(),
@@ -337,7 +349,7 @@ class MTermGridPanel(
             add(glyph, BorderLayout.CENTER)
             add(name, BorderLayout.SOUTH)
             addMouseListener(object : MouseAdapter() {
-                override fun mouseClicked(e: MouseEvent) = addAgent(profile)
+                override fun mouseClicked(e: MouseEvent) = startAgent(profile)
                 override fun mouseEntered(e: MouseEvent) {
                     hovered = true
                     repaint()

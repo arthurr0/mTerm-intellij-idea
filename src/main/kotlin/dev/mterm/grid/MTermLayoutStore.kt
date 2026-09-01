@@ -7,6 +7,7 @@ import com.intellij.openapi.components.Storage
 import com.intellij.openapi.components.StoragePathMacros
 import com.intellij.openapi.components.service
 import com.intellij.openapi.project.Project
+import dev.mterm.agents.LaunchOptions
 
 @Service(Service.Level.PROJECT)
 @State(name = "MTermLayout", storages = [Storage(StoragePathMacros.WORKSPACE_FILE)])
@@ -14,6 +15,8 @@ class MTermLayoutStore : PersistentStateComponent<MTermLayoutStore.State> {
 
     class State {
         var agentIds: MutableList<String> = mutableListOf()
+        var agentModels: MutableList<String> = mutableListOf()
+        var agentEfforts: MutableList<String> = mutableListOf()
         var columns: Int = 0
         var colWeights: MutableList<Int> = mutableListOf()
         var rowWeights: MutableList<Int> = mutableListOf()
@@ -29,14 +32,25 @@ class MTermLayoutStore : PersistentStateComponent<MTermLayoutStore.State> {
 
     val agentIds: List<String> get() = state.agentIds.toList()
 
+    fun launchOptions(index: Int): LaunchOptions =
+        LaunchOptions.of(state.agentModels.getOrNull(index), state.agentEfforts.getOrNull(index))
+
     val columns: Int? get() = state.columns.takeIf { it in 1..MAX_COLUMNS }
 
     fun columnFractions(): DoubleArray = state.colWeights.toFractions()
 
     fun rowFractions(): DoubleArray = state.rowWeights.toFractions()
 
-    fun save(agentIds: List<String>, columns: Int?, colFractions: DoubleArray, rowFractions: DoubleArray) {
+    fun save(
+        agentIds: List<String>,
+        launchOptions: List<LaunchOptions>,
+        columns: Int?,
+        colFractions: DoubleArray,
+        rowFractions: DoubleArray,
+    ) {
         state.agentIds = agentIds.toMutableList()
+        state.agentModels = launchOptions.map { it.model.orEmpty() }.toMutableList()
+        state.agentEfforts = launchOptions.map { it.effort.orEmpty() }.toMutableList()
         state.columns = columns ?: 0
         state.colWeights = colFractions.toWeights()
         state.rowWeights = rowFractions.toWeights()

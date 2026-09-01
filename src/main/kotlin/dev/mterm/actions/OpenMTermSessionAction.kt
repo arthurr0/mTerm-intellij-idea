@@ -9,6 +9,7 @@ import com.intellij.openapi.project.DumbAware
 import dev.mterm.agents.AgentProfile
 import dev.mterm.agents.AgentRegistry
 import dev.mterm.session.MTermSessionFile
+import dev.mterm.ui.LaunchOptionsDialog
 
 class OpenAgentTabAction(private val profile: AgentProfile) :
     AnAction("New ${profile.displayName} Tab", "Open a ${profile.displayName} session as an editor tab", null),
@@ -16,7 +17,8 @@ class OpenAgentTabAction(private val profile: AgentProfile) :
 
     override fun actionPerformed(e: AnActionEvent) {
         val project = e.project ?: return
-        val file = MTermSessionFile(profile, profile.workingDirectory ?: project.basePath)
+        val options = LaunchOptionsDialog.prompt(profile) ?: return
+        val file = MTermSessionFile(profile, profile.workingDirectory ?: project.basePath, options)
         FileEditorManager.getInstance(project).openFile(file, true)
     }
 

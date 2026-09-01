@@ -9,6 +9,7 @@ import com.intellij.ui.components.JBLabel
 import com.intellij.util.ui.JBUI
 import dev.mterm.agents.AgentActivity
 import dev.mterm.agents.AgentProfile
+import dev.mterm.agents.LaunchOptions
 import dev.mterm.changes.AgentChangeTracker
 import dev.mterm.changes.ui.AgentChangesUi
 import dev.mterm.session.MTermSessionLauncher
@@ -39,6 +40,7 @@ class AgentPane(
     val profile: AgentProfile,
     parentDisposable: Disposable,
     private val callbacks: Callbacks,
+    val launchOptions: LaunchOptions = LaunchOptions.NONE,
 ) {
 
     interface Callbacks {
@@ -57,6 +59,14 @@ class AgentPane(
     private val nameLabel = JBLabel(profile.displayName).apply {
         foreground = MTermColors.text
         border = JBUI.Borders.emptyLeft(6)
+    }
+
+    private val optionsLabel = JBLabel(launchOptions.label().orEmpty()).apply {
+        font = JBUI.Fonts.smallFont()
+        foreground = MTermColors.muted
+        border = JBUI.Borders.emptyLeft(6)
+        isVisible = !launchOptions.isEmpty
+        toolTipText = launchOptions.label()?.let { "Started with: $it" }
     }
 
     private val activityDot = ActivityDot(profile.color)
@@ -179,6 +189,7 @@ class AgentPane(
         parent = sessionDisposable,
         profile = profile,
         workingDirectory = profile.workingDirectory ?: project.basePath,
+        launchOptions = launchOptions,
         onTitleChange = ::updateTitle,
         onActivityChange = ::onActivityChanged,
         onSessionOpened = { session ->
@@ -209,6 +220,7 @@ class AgentPane(
         header.border = headerBorder()
         terminalHolder.border = contentBorder()
         nameLabel.foreground = MTermColors.text
+        optionsLabel.foreground = MTermColors.muted
         changesLabel.foreground = MTermColors.muted
         broadcastToggle.refreshColors()
         closeButton.refreshColors()
@@ -249,6 +261,7 @@ class AgentPane(
             add(activityDot)
             add(glyph)
             add(nameLabel)
+            add(optionsLabel)
         }
         header.add(title, BorderLayout.WEST)
 
@@ -304,7 +317,7 @@ class AgentPane(
                 if (e.clickCount == 2) callbacks.onToggleMaximize(this@AgentPane)
             }
         }
-        for (handle in listOf<JComponent>(header, title, glyph, nameLabel, activityDot)) {
+        for (handle in listOf<JComponent>(header, title, glyph, nameLabel, optionsLabel, activityDot)) {
             handle.addMouseListener(dragHandler)
             handle.addMouseMotionListener(dragHandler)
         }

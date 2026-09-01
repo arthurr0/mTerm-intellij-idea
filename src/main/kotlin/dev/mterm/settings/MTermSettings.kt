@@ -5,6 +5,7 @@ import com.intellij.openapi.components.Service
 import com.intellij.openapi.components.State
 import com.intellij.openapi.components.Storage
 import com.intellij.openapi.components.service
+import dev.mterm.agents.LaunchOptions
 import dev.mterm.sound.AgentSound
 
 @Service(Service.Level.APP)
@@ -24,6 +25,8 @@ class MTermSettings : PersistentStateComponent<MTermSettings.State> {
         var trackAgentChanges: Boolean = true
         var changeRetentionDays: Int = 7
         var enabledAgentNames: MutableSet<String> = mutableSetOf()
+        var lastModels: MutableMap<String, String> = mutableMapOf()
+        var lastEfforts: MutableMap<String, String> = mutableMapOf()
     }
 
     private var state = State()
@@ -77,6 +80,16 @@ class MTermSettings : PersistentStateComponent<MTermSettings.State> {
     var changeRetentionDays: Int
         get() = state.changeRetentionDays
         set(value) { state.changeRetentionDays = value }
+
+    fun lastLaunchOptions(profileId: String): LaunchOptions =
+        LaunchOptions.of(state.lastModels[profileId], state.lastEfforts[profileId])
+
+    fun rememberLaunchOptions(profileId: String, options: LaunchOptions) {
+        val model = options.model
+        val effort = options.effort
+        if (model == null) state.lastModels.remove(profileId) else state.lastModels[profileId] = model
+        if (effort == null) state.lastEfforts.remove(profileId) else state.lastEfforts[profileId] = effort
+    }
 
     fun consumeLegacyAgentNames(): Set<String>? {
         val names = state.enabledAgentNames

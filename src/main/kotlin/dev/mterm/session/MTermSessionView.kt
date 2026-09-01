@@ -21,6 +21,7 @@ class MTermSessionView(
         parent = parent,
         profile = file.profile,
         workingDirectory = file.workingDirectory,
+        launchOptions = file.launchOptions,
         onActivityChange = ::onActivityChanged,
     )
 
